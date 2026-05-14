@@ -20,6 +20,7 @@ import {
   InfoBookIcon,
   Tooltip,
   NewWindowIcon,
+  WrenchIcon,
 } from '@databricks/design-system';
 import { useQueryClient } from '@mlflow/mlflow/src/common/utils/reactQueryHooks';
 import type { Location } from '../utils/RoutingUtils';
@@ -59,6 +60,7 @@ const isExperimentsActive = (location: Location) =>
   );
 const isModelsActive = (location: Location) => Boolean(matchPath('/models/*', location.pathname));
 const isPromptsActive = (location: Location) => Boolean(matchPath('/prompts/*', location.pathname));
+const isToolsActive = (location: Location) => Boolean(matchPath('/tools/*', location.pathname));
 const isGatewayActive = (location: Location) => Boolean(matchPath('/gateway/*', location.pathname));
 const isSettingsActive = (location: Location) =>
   Boolean(
@@ -233,6 +235,16 @@ export function MlflowSidebar({
                 children: <FormattedMessage defaultMessage="Prompts" description="Sidebar link for prompts tab" />,
               },
               componentId: 'mlflow.sidebar.prompts_tab_link',
+            },
+            {
+              key: 'tools',
+              icon: <WrenchIcon />,
+              linkProps: {
+                to: ExperimentTrackingRoutes.toolsPageRoute,
+                isActive: isToolsActive,
+                children: <FormattedMessage defaultMessage="MCP Registry" description="Sidebar link for MCP registry tab" />,
+              },
+              componentId: 'mlflow.sidebar.tools_tab_link',
             },
           ]
         : []),

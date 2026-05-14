@@ -34,6 +34,37 @@ const getPromptPagesRouteDefs = () => {
   ];
 };
 
+const getToolPagesRouteDefs = () => {
+  return [
+    {
+      path: RoutePaths.toolsPage,
+      element: createLazyRouteElement(() => import('./pages/experiment-tool-registry/ToolRegistryPage')),
+      pageId: PageId.toolsPage,
+      handle: {
+        getPageTitle: () => 'MCP Registry',
+        getAssistantPrompts: () => [
+          'How do I register a new MCP server?',
+          'How do I use registered MCP servers with my agent?',
+          'What MCP servers are available in my registry?',
+        ],
+      } satisfies RouteHandle,
+    },
+    {
+      path: RoutePaths.toolDetailsPage,
+      element: createLazyRouteElement(() => import('./pages/experiment-tool-registry/ToolRegistryDetailsPage')),
+      pageId: PageId.toolDetailsPage,
+      handle: {
+        getPageTitle: (params) => `MCP Server: ${params['toolName']}`,
+        getAssistantPrompts: () => [
+          'Explain what this MCP server does.',
+          'How can I use this MCP server in my agent?',
+          'Show me how to call this MCP server in code.',
+        ],
+      } satisfies RouteHandle,
+    },
+  ];
+};
+
 const getExperimentPageRouteDefs = () => {
   return [
     {
@@ -205,6 +236,21 @@ const getExperimentPageRouteDefs = () => {
           } satisfies RouteHandle,
         },
         {
+          path: RoutePaths.experimentPageTabToolRegistry,
+          pageId: PageId.experimentPageTabToolRegistry,
+          element: createLazyRouteElement(() => {
+            return import('./pages/experiment-tool-registry/ExperimentToolRegistryPage');
+          }),
+          handle: {
+            getPageTitle: (params) => `Tool Registry - Experiment ${params['experimentId']}`,
+            getAssistantPrompts: () => [
+              'How do I register a new tool?',
+              'What tools are available in my experiment?',
+              'How do I use registered tools with my agent?',
+            ],
+          } satisfies RouteHandle,
+        },
+        {
           path: RoutePaths.experimentPageTabPromptDetails,
           pageId: PageId.experimentPageTabPromptDetails,
           element: createLazyRouteElement(() => {
@@ -369,4 +415,5 @@ export const getRouteDefs = () => [
     } satisfies RouteHandle,
   },
   ...getPromptPagesRouteDefs(),
+  ...getToolPagesRouteDefs(),
 ];

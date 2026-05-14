@@ -1,0 +1,411 @@
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate, Link } from '../../../common/utils/RoutingUtils';
+import { ScrollablePageWrapper } from '../../../common/components/ScrollablePageWrapper';
+import {
+  Breadcrumb,
+  Button,
+  DropdownMenu,
+  Header,
+  OverflowIcon,
+  Spacer,
+  useDesignSystemTheme,
+  GenericSkeleton,
+  TableSkeleton,
+} from '@databricks/design-system';
+import { FormattedMessage, useIntl } from 'react-intl';
+import Routes from '../../routes';
+import type { RegisteredTool, ToolVersion } from './types';
+import Utils from '../../../common/utils/Utils';
+import { ExperimentPageTabName } from '../../constants';
+import { useRegisterToolModal } from './hooks/useRegisterToolModal';
+import { ToolVersionsTable } from './components/ToolVersionsTable';
+import { ToolContentPreview } from './components/ToolContentPreview';
+import { useEditAliasesModal } from '../../../common/hooks/useEditAliasesModal';
+import { useUpdateToolVersionMetadataModal } from './hooks/useUpdateToolVersionMetadataModal';
+import { DirectAccessBindingsList } from './components/DirectAccessBindingsList';
+import { useEditEndpointModal } from './hooks/useEditEndpointModal';
+
+const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
+
+// Helper to load tools from localStorage
+const loadToolsFromStorage = (): RegisteredTool[] => {
+  try {
+    const stored = localStorage.getItem(TOOLS_STORAGE_KEY);
+    if (stored) {
+      return JSON.parse(stored);
+    }
+  } catch (error) {
+    console.error('Failed to load tools from localStorage:', error);
+  }
+  return [];
+};
+
+// Helper to save tools to localStorage
+const saveToolsToStorage = (tools: RegisteredTool[]) => {
+  try {
+    localStorage.setItem(TOOLS_STORAGE_KEY, JSON.stringify(tools));
+  } catch (error) {
+    console.error('Failed to save tools to localStorage:', error);
+  }
+};
+
+const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {}) => {
+  const { toolName } = useParams<{ toolName: string }>();
+  const { theme } = useDesignSystemTheme();
+  const navigate = useNavigate();
+  const intl = useIntl();
+  const [tool, setTool] = useState<RegisteredTool | null>(null);
+  const [allTools, setAllTools] = useState<RegisteredTool[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
+
+  const decodedToolName = toolName ? decodeURIComponent(toolName) : '';
+
+  useEffect(() => {
+    if (!toolName) {
+      setIsLoading(false);
+      return;
+    }
+
+    // Load all tools from localStorage
+    const tools = loadToolsFromStorage();
+    setAllTools(tools);
+    let foundTool = tools.find((t) => t.name === decodedToolName);
+
+    // Migrate old tools without versions array
+    if (foundTool && (!foundTool.versions || foundTool.versions.length === 0)) {
+      const migratedVersion: ToolVersion = {
+        version: foundTool.latest_version || '1',
+        description: foundTool.description,
+        server_json: foundTool.server_json,
+        creation_timestamp: foundTool.last_updated_timestamp || Date.now(),
+        last_updated_timestamp: foundTool.last_updated_timestamp || Date.now(),
+      };
+
+      foundTool = {
+        ...foundTool,
+        versions: [migratedVersion],
+        aliases: foundTool.aliases || [],
+      };
+
+      // Save the migrated tool back to localStorage
+      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+      if (toolIndex >= 0) {
+        tools[toolIndex] = foundTool;
+        saveToolsToStorage(tools);
+      }
+    }
+
+    setTool(foundTool || null);
+
+    // Set selected version to latest version
+    if (foundTool?.versions && foundTool.versions.length > 0) {
+      setSelectedVersion(foundTool.versions[0].version);
+    }
+
+    setIsLoading(false);
+  }, [toolName, decodedToolName]);
+
+  const refetch = () => {
+    const tools = loadToolsFromStorage();
+    const foundTool = tools.find((t) => t.name === decodedToolName);
+    setTool(foundTool || null);
+  };
+
+  const { RegisterToolModal, openModal: openCreateVersionModal } = useRegisterToolModal({
+    experimentId,
+    onSuccess: ({ toolName: newToolName, description, serverJson }) => {
+      const tools = loadToolsFromStorage();
+      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+
+      if (toolIndex >= 0) {
+        const existingTool = tools[toolIndex];
+        const currentVersion = parseInt(existingTool.latest_version || '1', 10);
+        const newVersion = (currentVersion + 1).toString();
+        const timestamp = Date.now();
+
+        const newToolVersion: ToolVersion = {
+          version: newVersion,
+          description: description || undefined,
+          server_json: serverJson || undefined,
+          creation_timestamp: timestamp,
+          last_updated_timestamp: timestamp,
+        };
+
+        const updatedTool: RegisteredTool = {
+          ...existingTool,
+          latest_version: newVersion,
+          last_updated_timestamp: timestamp,
+          versions: [newToolVersion, ...(existingTool.versions || [])],
+        };
+
+        tools[toolIndex] = updatedTool;
+        saveToolsToStorage(tools);
+        setTool(updatedTool);
+        setSelectedVersion(newVersion);
+      }
+    },
+  });
+
+  const handleDelete = () => {
+    if (!tool) return;
+
+    const tools = loadToolsFromStorage();
+    const updatedTools = tools.filter((t) => t.name !== tool.name);
+    saveToolsToStorage(updatedTools);
+
+    // Navigate back to MCP Registry
+    navigate(
+      experimentId
+        ? Routes.getExperimentPageTabRoute(experimentId, ExperimentPageTabName.ToolRegistry)
+        : Routes.toolsPageRoute,
+    );
+  };
+
+  const handleDeleteVersion = (version: string) => {
+    if (!tool) return;
+
+    const tools = loadToolsFromStorage();
+    const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+
+    if (toolIndex >= 0) {
+      const updatedVersions = (tool.versions || []).filter((v) => v.version !== version);
+
+      if (updatedVersions.length === 0) {
+        // If no versions left, delete the entire tool
+        handleDelete();
+        return;
+      }
+
+      const updatedTool: RegisteredTool = {
+        ...tool,
+        versions: updatedVersions,
+        latest_version: updatedVersions[0]?.version,
+        last_updated_timestamp: Date.now(),
+      };
+
+      tools[toolIndex] = updatedTool;
+      saveToolsToStorage(tools);
+      setTool(updatedTool);
+
+      // Update selected version if the deleted one was selected
+      if (selectedVersion === version && updatedVersions.length > 0) {
+        setSelectedVersion(updatedVersions[0].version);
+      }
+    }
+  };
+
+  const selectedVersionEntity = tool?.versions?.find((v) => v.version === selectedVersion);
+
+  const aliasesByVersion = useMemo(() => {
+    const result: Record<string, string[]> = {};
+    tool?.aliases?.forEach(({ alias, version }) => {
+      if (!result[version]) {
+        result[version] = [];
+      }
+      result[version].push(alias);
+    });
+    return result;
+  }, [tool]);
+
+  const getAliasesModalTitle = (version: string) => (
+    <FormattedMessage
+      defaultMessage="Add/edit alias for MCP server version {version}"
+      description="Title for the edit aliases modal on the MCP server details page"
+      values={{ version }}
+    />
+  );
+
+  const { EditAliasesModal, showEditAliasesModal } = useEditAliasesModal({
+    aliases: tool?.aliases ?? [],
+    onSuccess: refetch,
+    getTitle: getAliasesModalTitle,
+    onSave: async (currentlyEditedVersion: string, existingAliases: string[], draftAliases: string[]) => {
+      if (!tool) return;
+
+      const tools = loadToolsFromStorage();
+      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+
+      if (toolIndex >= 0) {
+        // Remove old aliases for this version
+        const otherAliases = (tool.aliases || []).filter((a) => a.version !== currentlyEditedVersion);
+
+        // Add new aliases for this version
+        const newAliases = draftAliases.map((alias) => ({
+          alias,
+          version: currentlyEditedVersion,
+        }));
+
+        const updatedTool: RegisteredTool = {
+          ...tool,
+          aliases: [...otherAliases, ...newAliases],
+        };
+
+        tools[toolIndex] = updatedTool;
+        saveToolsToStorage(tools);
+        setTool(updatedTool);
+      }
+    },
+    description: (
+      <FormattedMessage
+        defaultMessage="Aliases allow you to assign a mutable, named reference to a particular MCP server version."
+        description="Description for the edit aliases modal on the MCP server details page"
+      />
+    ),
+  });
+
+  const { EditToolVersionMetadataModal, showEditToolVersionMetadataModal } = useUpdateToolVersionMetadataModal({
+    onSuccess: ({ toolName, toolVersion, newMetadata }) => {
+      const tools = loadToolsFromStorage();
+      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+
+      if (toolIndex >= 0) {
+        const updatedVersions = (tool?.versions || []).map((v) => {
+          if (v.version === toolVersion) {
+            return {
+              ...v,
+              metadata: newMetadata,
+            };
+          }
+          return v;
+        });
+
+        const updatedTool: RegisteredTool = {
+          ...(tool || tools[toolIndex]),
+          versions: updatedVersions,
+        };
+
+        tools[toolIndex] = updatedTool;
+        saveToolsToStorage(tools);
+        setTool(updatedTool);
+      }
+    },
+  });
+
+  const { EditEndpointModal, openEditModal: openEditEndpointModal } = useEditEndpointModal({
+    tools: allTools,
+    onSuccess: () => {
+      // Trigger a re-render to refresh the bindings list
+      refetch();
+    },
+  });
+
+  const breadcrumbs = !experimentId ? (
+    <Breadcrumb>
+      <Breadcrumb.Item>
+        <Link componentId="mlflow.tool-registry.details.breadcrumb_link" to={Routes.toolsPageRoute}>
+          <FormattedMessage defaultMessage="MCP Registry" description="Breadcrumb label for MCP Registry" />
+        </Link>
+      </Breadcrumb.Item>
+    </Breadcrumb>
+  ) : undefined;
+
+  if (isLoading) {
+    return (
+      <ScrollablePageWrapper>
+        <Spacer shrinks={false} />
+        <Header
+          breadcrumbs={breadcrumbs}
+          title={<GenericSkeleton css={{ height: theme.general.heightBase, width: 200 }} />}
+          buttons={<GenericSkeleton css={{ height: theme.general.heightBase, width: 120 }} />}
+        />
+        <Spacer shrinks={false} />
+        <TableSkeleton lines={4} />
+      </ScrollablePageWrapper>
+    );
+  }
+
+  if (!tool) {
+    return (
+      <ScrollablePageWrapper>
+        <Spacer shrinks={false} />
+        <Header breadcrumbs={breadcrumbs} title={decodedToolName || 'Not Found'} />
+        <Spacer shrinks={false} />
+        <div>
+          <FormattedMessage
+            defaultMessage="MCP server not found"
+            description="Error message when MCP server is not found"
+          />
+        </div>
+      </ScrollablePageWrapper>
+    );
+  }
+
+  const isEmptyVersions = !isLoading && !tool?.versions?.length;
+  const showPreviewPane = !isLoading && !isEmptyVersions;
+
+  return (
+    <ScrollablePageWrapper css={{ overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+      <Spacer shrinks={false} />
+      <Header
+        breadcrumbs={breadcrumbs}
+        title={tool.name}
+        buttons={
+          <>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger asChild>
+                <Button
+                  componentId="mlflow.tool-registry.details.actions"
+                  icon={<OverflowIcon />}
+                  aria-label="More actions"
+                />
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content>
+                <DropdownMenu.Item componentId="mlflow.tool-registry.details.actions.delete" onClick={handleDelete}>
+                  <FormattedMessage
+                    defaultMessage="Delete"
+                    description="Label for the delete MCP server action on the MCP server details page"
+                  />
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+            <Button componentId="mlflow.tool-registry.details.create" type="primary" onClick={openCreateVersionModal}>
+              <FormattedMessage
+                defaultMessage="Create MCP server version"
+                description="Label for the create MCP server version button"
+              />
+            </Button>
+          </>
+        }
+      />
+      <Spacer shrinks={false} />
+      <div css={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+        <div css={{ flex: showPreviewPane ? '0 0 320px' : 1, display: 'flex', flexDirection: 'column' }}>
+          <ToolVersionsTable
+            isLoading={isLoading}
+            registeredTool={tool}
+            toolVersions={tool?.versions}
+            selectedVersion={selectedVersion}
+            onUpdateSelectedVersion={setSelectedVersion}
+            aliasesByVersion={aliasesByVersion}
+            showEditAliasesModal={showEditAliasesModal}
+          />
+        </div>
+        {showPreviewPane && (
+          <div css={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+            <div css={{ borderLeft: `1px solid ${theme.colors.border}`, flex: 1, overflow: 'hidden', display: 'flex' }}>
+              <ToolContentPreview
+                toolVersion={selectedVersionEntity}
+                onDeletedVersion={handleDeleteVersion}
+                aliasesByVersion={aliasesByVersion}
+                registeredTool={tool}
+                onUpdatedContent={refetch}
+                showEditAliasesModal={showEditAliasesModal}
+                showEditToolVersionMetadataModal={showEditToolVersionMetadataModal}
+                allTools={allTools}
+                onEditBinding={openEditEndpointModal}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+      <Spacer shrinks={false} />
+      {EditAliasesModal}
+      {EditToolVersionMetadataModal}
+      {RegisterToolModal}
+      {EditEndpointModal}
+    </ScrollablePageWrapper>
+  );
+};
+
+export default ToolRegistryDetailsPage;

@@ -12,6 +12,7 @@ import {
   SpeechBubbleIcon,
   TextBoxIcon,
   UserGroupIcon,
+  WrenchIcon,
 } from '@databricks/design-system';
 import { FormattedMessage } from 'react-intl';
 import { enableScorersUI, shouldEnableExperimentOverviewTab } from '@mlflow/mlflow/src/common/utils/FeatureUtils';
@@ -103,6 +104,17 @@ const ExperimentPageSideNavGenAIConfig = {
       icon: <ModelsIcon />,
       tabName: ExperimentPageTabName.Models,
       componentId: 'mlflow.experiment-side-nav.genai.agent-versions',
+    },
+    {
+      label: (
+        <FormattedMessage
+          defaultMessage="Tool registry"
+          description="Label for the tool registry tab in the MLflow experiment navbar"
+        />
+      ),
+      icon: <WrenchIcon />,
+      tabName: ExperimentPageTabName.ToolRegistry,
+      componentId: 'mlflow.experiment-side-nav.genai.tool-registry',
     },
   ],
 };

@@ -12,6 +12,8 @@ export enum PageId {
   settingsPage = 'mlflow.settings',
   promptsPage = 'mlflow.prompts',
   promptDetailsPage = 'mlflow.prompts.details',
+  toolsPage = 'mlflow.tools',
+  toolDetailsPage = 'mlflow.tools.details',
   experimentPageTabbed = 'mlflow.experiment.details.tab',
   experimentLoggedModelDetailsPageTab = 'mlflow.logged-model.details.tab',
   experimentLoggedModelDetailsPage = 'mlflow.logged-model.details',
@@ -29,6 +31,7 @@ export enum PageId {
   experimentPageTabScorers = 'mlflow.experiment.tab.scorers',
   experimentPageTabPrompts = 'mlflow.experiment.prompts.list',
   experimentPageTabPromptDetails = 'mlflow.experiment.prompt.details',
+  experimentPageTabToolRegistry = 'mlflow.experiment.tab.tool-registry',
   // Child routes for experiment page - end
   experimentPageSearch = 'mlflow.experiment.details.search',
   compareExperimentsSearch = 'mlflow.experiment.compare',
@@ -88,6 +91,9 @@ export class RoutePaths {
   static get experimentPageTabScorers() {
     return createMLflowRoutePath('/experiments/:experimentId/judges');
   }
+  static get experimentPageTabToolRegistry() {
+    return createMLflowRoutePath('/experiments/:experimentId/tool-registry');
+  }
   // Child routes for experiment page - end
   static get experimentLoggedModelDetailsPageTab() {
     return createMLflowRoutePath('/experiments/:experimentId/models/:loggedModelId/:tabName');
@@ -143,6 +149,16 @@ export class RoutePaths {
   }
   static get promptDetailsPage() {
     return createMLflowRoutePath('/prompts/:promptName');
+  }
+  /**
+   * Route paths for tools management.
+   * Featured exclusively in open source MLflow.
+   */
+  static get toolsPage() {
+    return createMLflowRoutePath('/tools');
+  }
+  static get toolDetailsPage() {
+    return createMLflowRoutePath('/tools/:toolName');
   }
   static get settingsPage() {
     return createMLflowRoutePath('/settings');
@@ -348,6 +364,19 @@ class Routes {
       return generatePath(RoutePaths.experimentPageTabPromptDetails, { experimentId, promptName });
     }
     return generatePath(RoutePaths.promptDetailsPage, { promptName });
+  }
+
+  /**
+   * Routes for tools management.
+   * Featured exclusively in open source MLflow.
+   */
+
+  static get toolsPageRoute() {
+    return RoutePaths.toolsPage;
+  }
+
+  static getToolDetailsPageRoute(toolName: string) {
+    return generatePath(RoutePaths.toolDetailsPage, { toolName });
   }
 }
 
