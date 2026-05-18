@@ -183,7 +183,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
     if (!tool) return;
 
     const tools = loadToolsFromStorage();
-    const updatedTools = tools.filter((t) => t.internal_name !== tool.name);
+    const updatedTools = tools.filter((t) => t.internal_name !== tool.internal_name);
     saveToolsToStorage(updatedTools);
 
     // Navigate back to MCP Registry

@@ -172,8 +172,8 @@ export const useCreateEndpointModal = ({
   const serverOptions = useMemo(
     () =>
       tools.map((tool) => ({
-        value: tool.name,
-        label: tool.name,
+        value: tool.internal_name,
+        label: tool.internal_name,
       })),
     [tools],
   );

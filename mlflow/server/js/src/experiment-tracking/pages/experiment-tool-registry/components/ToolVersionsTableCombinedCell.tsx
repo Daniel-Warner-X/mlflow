@@ -30,7 +30,7 @@ export const ToolVersionsTableCombinedCell: ColumnDef<ToolVersion>['cell'] = ({
         <Typography.Text bold>Version {original.version}</Typography.Text>
         {registeredTool && (
           <ModelVersionTableAliasesCell
-            modelName={registeredTool.name}
+            modelName={registeredTool.internal_name}
             version={original.version}
             aliases={aliases}
             onAddEdit={() => {

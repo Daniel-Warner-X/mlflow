@@ -434,7 +434,7 @@ export const ToolContentPreview = ({
         {registeredTool && allTools && (
           <div css={{ marginTop: theme.spacing.lg }}>
             <DirectAccessBindingsList
-              serverName={registeredTool.name}
+              serverName={registeredTool.internal_name}
               tools={allTools}
               onEditBinding={onEditBinding}
             />
