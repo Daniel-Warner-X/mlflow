@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - main
+      - add-experiment-tool-registry
   workflow_dispatch:  # Allows manual triggering from Actions tab
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
