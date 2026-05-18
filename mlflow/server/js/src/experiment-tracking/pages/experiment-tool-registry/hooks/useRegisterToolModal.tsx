@@ -5,9 +5,10 @@ import {
   RHFControlledComponents,
   Spacer,
 } from '@databricks/design-system';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
+import type { ParsedServerJson } from '../types';
 
 export const useRegisterToolModal = ({
   experimentId,
@@ -20,6 +21,7 @@ export const useRegisterToolModal = ({
     serverVersion?: string;
     description: string;
     serverJson: string;
+    parsedServerJson?: ParsedServerJson;
   }) => void | Promise<any>;
 }) => {
   const [open, setOpen] = useState(false);
@@ -40,6 +42,24 @@ export const useRegisterToolModal = ({
   // Mock mutation - in a real implementation, this would be a mutation hook
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
+
+  // Watch serverJson field to auto-populate displayName from title
+  const serverJsonValue = form.watch('serverJson');
+  const displayNameValue = form.watch('displayName');
+
+  useEffect(() => {
+    // Only auto-populate if displayName is empty and serverJson is valid
+    if (!displayNameValue && serverJsonValue) {
+      try {
+        const parsed = JSON.parse(serverJsonValue);
+        if (parsed?.title) {
+          form.setValue('displayName', parsed.title);
+        }
+      } catch (e) {
+        // Ignore parse errors - user is probably still typing
+      }
+    }
+  }, [serverJsonValue, displayNameValue, form]);
 
   const handleSubmit = async (values: { displayName: string; description: string; serverJson: string }) => {
     setIsLoading(true);
@@ -64,6 +84,33 @@ export const useRegisterToolModal = ({
         return;
       }
 
+      // Extract and structure parsed fields from server.json
+      const parsedFields: ParsedServerJson = {
+        title: parsedServerJson?.title,
+        description: parsedServerJson?.description,
+        version: parsedServerJson?.version,
+        websiteUrl: parsedServerJson?.websiteUrl,
+        repository: parsedServerJson?.repository
+          ? {
+              url: parsedServerJson.repository.url,
+              source: parsedServerJson.repository.source,
+            }
+          : undefined,
+        packages: parsedServerJson?.packages?.map((pkg: any) => ({
+          runtimeHint: pkg.runtimeHint,
+          identifier: pkg.identifier,
+          version: pkg.version,
+          registryType: pkg.registryType,
+          environmentVariables: pkg.environmentVariables,
+          runtimeArguments: pkg.runtimeArguments,
+          packageArguments: pkg.packageArguments,
+        })),
+        icons: parsedServerJson?.icons?.map((icon: any) => ({
+          src: icon.src,
+          mimeType: icon.mimeType,
+        })),
+      };
+
       // Extract optional server_version from server.json
       const serverVersion = parsedServerJson?.version;
 
@@ -77,6 +124,7 @@ export const useRegisterToolModal = ({
         serverVersion,
         description: values.description,
         serverJson: values.serverJson,
+        parsedServerJson: parsedFields,
         experimentId,
       });
 
@@ -86,6 +134,7 @@ export const useRegisterToolModal = ({
         serverVersion,
         description: values.description,
         serverJson: values.serverJson,
+        parsedServerJson: parsedFields,
       });
       setOpen(false);
     } catch (err) {

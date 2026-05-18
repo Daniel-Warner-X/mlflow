@@ -266,43 +266,209 @@ export const ToolContentPreview = ({
 
         {/* Server Configuration */}
         <div>
-          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
+          <div css={{ fontWeight: 600, marginBottom: theme.spacing.md }}>
             <FormattedMessage
-              defaultMessage="Server configuration (server.json):"
+              defaultMessage="Server configuration:"
               description="Label for server configuration"
             />
           </div>
-          <div>
-            {toolVersion.server_json ? (
-              <pre
-                css={{
-                  backgroundColor: theme.colors.backgroundSecondary,
-                  padding: theme.spacing.sm,
-                  borderRadius: theme.borders.borderRadiusMd,
-                  overflow: 'auto',
-                  maxHeight: 400,
-                  fontSize: theme.typography.fontSizeSm,
-                  fontFamily: 'monospace',
-                  margin: 0,
-                }}
-              >
-                {(() => {
-                  try {
-                    return JSON.stringify(JSON.parse(toolVersion.server_json), null, 2);
-                  } catch {
-                    return toolVersion.server_json;
-                  }
-                })()}
-              </pre>
-            ) : (
-              <span css={{ color: theme.colors.textSecondary }}>
-                <FormattedMessage
-                  defaultMessage="No server configuration provided"
-                  description="Placeholder for empty server configuration"
-                />
-              </span>
-            )}
-          </div>
+          {registeredTool?.parsed_server_json ? (
+            <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+              {/* Title (from server.json) */}
+              {registeredTool.parsed_server_json.title && (
+                <div>
+                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
+                    <FormattedMessage defaultMessage="Title:" description="Label for server title" />
+                  </div>
+                  <div css={{ fontSize: theme.typography.fontSizeSm }}>{registeredTool.parsed_server_json.title}</div>
+                </div>
+              )}
+
+              {/* Description (from server.json) */}
+              {registeredTool.parsed_server_json.description && (
+                <div>
+                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
+                    <FormattedMessage defaultMessage="Description:" description="Label for server description" />
+                  </div>
+                  <div css={{ fontSize: theme.typography.fontSizeSm }}>
+                    {registeredTool.parsed_server_json.description}
+                  </div>
+                </div>
+              )}
+
+              {/* Package Configuration */}
+              {registeredTool.parsed_server_json.packages && registeredTool.parsed_server_json.packages.length > 0 && (
+                <div>
+                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: theme.spacing.xs }}>
+                    <FormattedMessage defaultMessage="Package:" description="Label for package configuration" />
+                  </div>
+                  {(() => {
+                    const pkg = registeredTool.parsed_server_json.packages![0];
+                    return (
+                      <div
+                        css={{
+                          backgroundColor: theme.colors.backgroundSecondary,
+                          padding: theme.spacing.sm,
+                          borderRadius: theme.borders.borderRadiusMd,
+                          fontSize: theme.typography.fontSizeSm,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4,
+                        }}
+                      >
+                        {pkg.runtimeHint && (
+                          <div>
+                            <span css={{ fontWeight: 500 }}>Runtime: </span>
+                            <span css={{ fontFamily: 'monospace' }}>{pkg.runtimeHint}</span>
+                          </div>
+                        )}
+                        {pkg.identifier && (
+                          <div>
+                            <span css={{ fontWeight: 500 }}>Package: </span>
+                            <span css={{ fontFamily: 'monospace' }}>{pkg.identifier}</span>
+                          </div>
+                        )}
+                        {pkg.version && (
+                          <div>
+                            <span css={{ fontWeight: 500 }}>Version: </span>
+                            <span css={{ fontFamily: 'monospace' }}>{pkg.version}</span>
+                          </div>
+                        )}
+                        {pkg.registryType && (
+                          <div>
+                            <span css={{ fontWeight: 500 }}>Registry: </span>
+                            <span css={{ fontFamily: 'monospace' }}>{pkg.registryType}</span>
+                          </div>
+                        )}
+                        {pkg.environmentVariables && pkg.environmentVariables.length > 0 && (
+                          <div>
+                            <span css={{ fontWeight: 500 }}>Environment variables: </span>
+                            <span css={{ fontFamily: 'monospace' }}>
+                              {pkg.environmentVariables.map((envVar) => Object.keys(envVar)[0]).join(', ')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+                  {registeredTool.parsed_server_json.packages.length > 1 && (
+                    <div css={{ fontSize: theme.typography.fontSizeSm, color: theme.colors.textSecondary, marginTop: 4 }}>
+                      <FormattedMessage
+                        defaultMessage="and {count} more"
+                        description="Indicator for additional packages"
+                        values={{ count: registeredTool.parsed_server_json.packages.length - 1 }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Website URL */}
+              {registeredTool.parsed_server_json.websiteUrl && (
+                <div>
+                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
+                    <FormattedMessage defaultMessage="Website:" description="Label for website URL" />
+                  </div>
+                  <Typography.Link
+                    componentId="mlflow.tool-registry.details.website_link"
+                    href={registeredTool.parsed_server_json.websiteUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {registeredTool.parsed_server_json.websiteUrl}
+                  </Typography.Link>
+                </div>
+              )}
+
+              {/* Repository */}
+              {registeredTool.parsed_server_json.repository?.url && (
+                <div>
+                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
+                    <FormattedMessage defaultMessage="Repository:" description="Label for repository URL" />
+                  </div>
+                  <Typography.Link
+                    componentId="mlflow.tool-registry.details.repository_link"
+                    href={registeredTool.parsed_server_json.repository.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {registeredTool.parsed_server_json.repository.url}
+                  </Typography.Link>
+                </div>
+              )}
+
+              {/* View full configuration toggle */}
+              <details css={{ marginTop: theme.spacing.xs }}>
+                <summary
+                  css={{
+                    cursor: 'pointer',
+                    fontSize: theme.typography.fontSizeSm,
+                    color: theme.colors.actionDefaultTextDefault,
+                    '&:hover': {
+                      color: theme.colors.actionDefaultTextHover,
+                    },
+                  }}
+                >
+                  <FormattedMessage
+                    defaultMessage="View full configuration"
+                    description="Toggle to view raw server.json"
+                  />
+                </summary>
+                <pre
+                  css={{
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    padding: theme.spacing.sm,
+                    borderRadius: theme.borders.borderRadiusMd,
+                    overflow: 'auto',
+                    maxHeight: 400,
+                    fontSize: theme.typography.fontSizeSm,
+                    fontFamily: 'monospace',
+                    margin: `${theme.spacing.xs}px 0 0 0`,
+                  }}
+                >
+                  {(() => {
+                    try {
+                      return JSON.stringify(JSON.parse(toolVersion.server_json!), null, 2);
+                    } catch {
+                      return toolVersion.server_json;
+                    }
+                  })()}
+                </pre>
+              </details>
+            </div>
+          ) : (
+            <div>
+              {toolVersion.server_json ? (
+                <pre
+                  css={{
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    padding: theme.spacing.sm,
+                    borderRadius: theme.borders.borderRadiusMd,
+                    overflow: 'auto',
+                    maxHeight: 400,
+                    fontSize: theme.typography.fontSizeSm,
+                    fontFamily: 'monospace',
+                    margin: 0,
+                  }}
+                >
+                  {(() => {
+                    try {
+                      return JSON.stringify(JSON.parse(toolVersion.server_json), null, 2);
+                    } catch {
+                      return toolVersion.server_json;
+                    }
+                  })()}
+                </pre>
+              ) : (
+                <span css={{ color: theme.colors.textSecondary, fontSize: theme.typography.fontSizeSm }}>
+                  <FormattedMessage
+                    defaultMessage="No server configuration provided"
+                    description="Placeholder for empty server configuration"
+                  />
+                </span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Description */}

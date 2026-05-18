@@ -12,12 +12,39 @@ export interface ToolVersion {
   metadata?: Array<{ key: string; value: string }>;
 }
 
-export interface RegisteredTool {
-  internal_name: string; // From server.json, immutable
-  display_name?: string; // Optional, mutable, user-friendly override
-  server_version?: string; // From server.json
+export interface ServerPackage {
+  runtimeHint?: string; // e.g., "npx", "python", "node"
+  identifier?: string; // e.g., "@modelcontextprotocol/server-brave-search"
+  version?: string;
+  registryType?: string; // e.g., "npm", "pypi"
+  environmentVariables?: Array<{ [key: string]: any }>;
+  runtimeArguments?: Array<{ [key: string]: any }>;
+  packageArguments?: Array<{ [key: string]: any }>;
+}
+
+export interface ParsedServerJson {
+  title?: string;
   description?: string;
-  server_json?: string;
+  version?: string;
+  websiteUrl?: string;
+  repository?: {
+    url?: string;
+    source?: string;
+  };
+  packages?: ServerPackage[];
+  icons?: Array<{
+    src?: string;
+    mimeType?: string;
+  }>;
+}
+
+export interface RegisteredTool {
+  internal_name: string; // From server.json name field, immutable
+  display_name?: string; // Optional, mutable, user-friendly override
+  server_version?: string; // From server.json version field
+  description?: string;
+  server_json?: string; // Raw JSON string
+  parsed_server_json?: ParsedServerJson; // Parsed fields from server.json
   latest_version?: string; // Our registry version tracking (1, 2, 3...)
   last_updated_timestamp?: number;
   tags?: Array<{ key: string; value: string }>;

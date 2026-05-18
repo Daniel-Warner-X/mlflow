@@ -137,7 +137,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
 
   const { RegisterToolModal, openModal: openRegisterToolModal } = useRegisterToolModal({
     experimentId,
-    onSuccess: ({ internalName, displayName, serverVersion, description, serverJson }) => {
+    onSuccess: ({ internalName, displayName, serverVersion, description, serverJson, parsedServerJson }) => {
       setTools((prevTools) => {
         // Check if a tool with this internal_name already exists
         const existingToolIndex = prevTools.findIndex((tool) => tool.internal_name === internalName);
@@ -163,6 +163,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             server_version: serverVersion,
             description: description || existingTool.description,
             server_json: serverJson || existingTool.server_json,
+            parsed_server_json: parsedServerJson,
             latest_version: newVersion,
             last_updated_timestamp: timestamp,
             versions: [newToolVersion, ...(existingTool.versions || [])],
@@ -188,6 +189,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             server_version: serverVersion,
             description: description || undefined,
             server_json: serverJson || undefined,
+            parsed_server_json: parsedServerJson,
             latest_version: '1',
             last_updated_timestamp: timestamp,
             tags: [],
