@@ -109,160 +109,162 @@ export const ToolContentPreview = ({
       </div>
       <Spacer size="md" />
 
-      <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+      <div
+        css={{
+          display: 'grid',
+          gridTemplateColumns: '140px 1fr',
+          gridAutoRows: `minmax(${theme.typography.lineHeightLg}, auto)`,
+          alignItems: 'flex-start',
+          rowGap: theme.spacing.xs,
+          columnGap: theme.spacing.sm,
+        }}
+      >
         {/* Internal Name (read-only) */}
-        <div>
-          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
-            <FormattedMessage defaultMessage="Internal name:" description="Label for internal name from server.json" />
-          </div>
-          <div css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm }}>
-            {registeredTool?.internal_name}
-          </div>
-        </div>
+        <Typography.Text bold>
+          <FormattedMessage defaultMessage="Internal name:" description="Label for internal name from server.json" />
+        </Typography.Text>
+        <Typography.Text css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm }}>
+          {registeredTool?.internal_name}
+        </Typography.Text>
 
         {/* Display Name (editable) */}
+        <Typography.Text bold>
+          <FormattedMessage defaultMessage="Display name:" description="Label for display name" />
+        </Typography.Text>
         <div>
-          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
-            <FormattedMessage defaultMessage="Display name:" description="Label for display name" />
-          </div>
-          <div css={{ marginTop: theme.spacing.xs }}>
-            {registeredTool?.display_name ? (
-              <div css={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
-                <span>{registeredTool.display_name}</span>
-                <Typography.Link
-                  componentId="mlflow.tool-registry.details.edit_display_name"
-                  onClick={() => {
-                    // TODO: Implement edit display name modal
-                    console.log('Edit display name');
-                  }}
-                >
-                  <FormattedMessage defaultMessage="Edit" description="Link to edit display name" />
-                </Typography.Link>
-              </div>
-            ) : (
+          {registeredTool?.display_name ? (
+            <div css={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+              <Typography.Text>{registeredTool.display_name}</Typography.Text>
               <Typography.Link
-                componentId="mlflow.tool-registry.details.add_display_name"
+                componentId="mlflow.tool-registry.details.edit_display_name"
                 onClick={() => {
-                  // TODO: Implement add display name modal
-                  console.log('Add display name');
+                  // TODO: Implement edit display name modal
+                  console.log('Edit display name');
                 }}
               >
-                <FormattedMessage defaultMessage="Add" description="Link to add display name" />
+                <FormattedMessage defaultMessage="Edit" description="Link to edit display name" />
               </Typography.Link>
-            )}
-          </div>
+            </div>
+          ) : (
+            <Typography.Link
+              componentId="mlflow.tool-registry.details.add_display_name"
+              onClick={() => {
+                // TODO: Implement add display name modal
+                console.log('Add display name');
+              }}
+            >
+              <FormattedMessage defaultMessage="Add" description="Link to add display name" />
+            </Typography.Link>
+          )}
         </div>
 
         {/* Server Version (from server.json) */}
         {registeredTool?.server_version && (
-          <div>
-            <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
+          <>
+            <Typography.Text bold>
               <FormattedMessage defaultMessage="Server version:" description="Label for server version from server.json" />
-            </div>
-            <div css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm }}>
+            </Typography.Text>
+            <Typography.Text css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm }}>
               {registeredTool.server_version}
-            </div>
-          </div>
+            </Typography.Text>
+          </>
         )}
 
         {/* Registered at */}
-        <div>
-          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
-            <FormattedMessage defaultMessage="Registered at:" description="Label for registration timestamp" />
-          </div>
-          <div>
-            {Utils.formatTimestamp(toolVersion.creation_timestamp, intl)}
-          </div>
-        </div>
+        <Typography.Text bold>
+          <FormattedMessage defaultMessage="Registered at:" description="Label for registration timestamp" />
+        </Typography.Text>
+        <Typography.Text>{Utils.formatTimestamp(toolVersion.creation_timestamp, intl)}</Typography.Text>
 
         {/* Aliases */}
+        <Typography.Text bold>
+          <FormattedMessage defaultMessage="Aliases:" description="Label for aliases" />
+        </Typography.Text>
         <div>
-          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
-            <FormattedMessage defaultMessage="Aliases:" description="Label for aliases" />
-          </div>
-          <div css={{ marginTop: theme.spacing.xs }}>
-            {aliases.length > 0 ? (
-              <div css={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', alignItems: 'center' }}>
-                {aliases.map((alias) => (
-                  <span
-                    key={alias}
-                    css={{
-                      padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
-                      backgroundColor: theme.colors.backgroundSecondary,
-                      borderRadius: theme.borders.borderRadiusMd,
-                      fontSize: theme.typography.fontSizeSm,
-                    }}
-                  >
-                    @ {alias}
-                  </span>
-                ))}
-                <Typography.Link
-                  componentId="mlflow.tool-registry.details.edit_alias"
-                  onClick={() => {
-                    if (toolVersion && showEditAliasesModal) {
-                      showEditAliasesModal(toolVersion.version);
-                    }
+          {aliases.length > 0 ? (
+            <div css={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', alignItems: 'center' }}>
+              {aliases.map((alias) => (
+                <span
+                  key={alias}
+                  css={{
+                    padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    borderRadius: theme.borders.borderRadiusMd,
+                    fontSize: theme.typography.fontSizeSm,
                   }}
                 >
-                  <FormattedMessage defaultMessage="Edit" description="Link to edit aliases" />
-                </Typography.Link>
-              </div>
-            ) : (
+                  @ {alias}
+                </span>
+              ))}
               <Typography.Link
-                componentId="mlflow.tool-registry.details.add_alias"
+                componentId="mlflow.tool-registry.details.edit_alias"
                 onClick={() => {
                   if (toolVersion && showEditAliasesModal) {
                     showEditAliasesModal(toolVersion.version);
                   }
                 }}
               >
-                <FormattedMessage defaultMessage="Add" description="Link to add aliases" />
+                <FormattedMessage defaultMessage="Edit" description="Link to edit aliases" />
               </Typography.Link>
-            )}
-          </div>
+            </div>
+          ) : (
+            <Typography.Link
+              componentId="mlflow.tool-registry.details.add_alias"
+              onClick={() => {
+                if (toolVersion && showEditAliasesModal) {
+                  showEditAliasesModal(toolVersion.version);
+                }
+              }}
+            >
+              <FormattedMessage defaultMessage="Add" description="Link to add aliases" />
+            </Typography.Link>
+          )}
         </div>
 
         {/* Metadata */}
+        <Typography.Text bold>
+          <FormattedMessage defaultMessage="Metadata:" description="Label for metadata" />
+        </Typography.Text>
         <div>
-          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
-            <FormattedMessage defaultMessage="Metadata:" description="Label for metadata" />
-          </div>
-          <div>
-            {toolVersion.metadata && toolVersion.metadata.length > 0 ? (
-              <div>
-                <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-                  {toolVersion.metadata.map((item, index) => (
-                    <div key={index} css={{ fontSize: theme.typography.fontSizeSm }}>
-                      <strong>{item.key}:</strong> {item.value}
-                    </div>
-                  ))}
-                </div>
-                <Typography.Link
-                  componentId="mlflow.tool-registry.details.edit_metadata"
-                  onClick={() => {
-                    if (registeredTool && toolVersion && showEditToolVersionMetadataModal) {
-                      showEditToolVersionMetadataModal(registeredTool.name, toolVersion);
-                    }
-                  }}
-                  css={{ marginTop: theme.spacing.xs, display: 'inline-block' }}
-                >
-                  <FormattedMessage defaultMessage="Edit" description="Link to edit metadata" />
-                </Typography.Link>
+          {toolVersion.metadata && toolVersion.metadata.length > 0 ? (
+            <div>
+              <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
+                {toolVersion.metadata.map((item, index) => (
+                  <div key={index} css={{ fontSize: theme.typography.fontSizeSm }}>
+                    <strong>{item.key}:</strong> {item.value}
+                  </div>
+                ))}
               </div>
-            ) : (
               <Typography.Link
-                componentId="mlflow.tool-registry.details.add_metadata"
+                componentId="mlflow.tool-registry.details.edit_metadata"
                 onClick={() => {
                   if (registeredTool && toolVersion && showEditToolVersionMetadataModal) {
                     showEditToolVersionMetadataModal(registeredTool.name, toolVersion);
                   }
                 }}
+                css={{ marginTop: theme.spacing.xs, display: 'inline-block' }}
               >
-                <FormattedMessage defaultMessage="Add" description="Link to add metadata" />
+                <FormattedMessage defaultMessage="Edit" description="Link to edit metadata" />
               </Typography.Link>
-            )}
-          </div>
+            </div>
+          ) : (
+            <Typography.Link
+              componentId="mlflow.tool-registry.details.add_metadata"
+              onClick={() => {
+                if (registeredTool && toolVersion && showEditToolVersionMetadataModal) {
+                  showEditToolVersionMetadataModal(registeredTool.name, toolVersion);
+                }
+              }}
+            >
+              <FormattedMessage defaultMessage="Add" description="Link to add metadata" />
+            </Typography.Link>
+          )}
         </div>
+      </div>
+
+      <Spacer size="md" />
+
+      <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
 
         {/* Server Configuration */}
         <div>
