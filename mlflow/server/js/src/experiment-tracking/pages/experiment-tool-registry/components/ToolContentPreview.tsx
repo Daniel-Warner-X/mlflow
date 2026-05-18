@@ -220,46 +220,6 @@ export const ToolContentPreview = ({
             </Typography.Link>
           )}
         </div>
-
-        {/* Metadata */}
-        <Typography.Text bold>
-          <FormattedMessage defaultMessage="Metadata:" description="Label for metadata" />
-        </Typography.Text>
-        <div>
-          {toolVersion.metadata && toolVersion.metadata.length > 0 ? (
-            <div>
-              <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
-                {toolVersion.metadata.map((item, index) => (
-                  <div key={index} css={{ fontSize: theme.typography.fontSizeSm }}>
-                    <strong>{item.key}:</strong> {item.value}
-                  </div>
-                ))}
-              </div>
-              <Typography.Link
-                componentId="mlflow.tool-registry.details.edit_metadata"
-                onClick={() => {
-                  if (registeredTool && toolVersion && showEditToolVersionMetadataModal) {
-                    showEditToolVersionMetadataModal(registeredTool.name, toolVersion);
-                  }
-                }}
-                css={{ marginTop: theme.spacing.xs, display: 'inline-block' }}
-              >
-                <FormattedMessage defaultMessage="Edit" description="Link to edit metadata" />
-              </Typography.Link>
-            </div>
-          ) : (
-            <Typography.Link
-              componentId="mlflow.tool-registry.details.add_metadata"
-              onClick={() => {
-                if (registeredTool && toolVersion && showEditToolVersionMetadataModal) {
-                  showEditToolVersionMetadataModal(registeredTool.name, toolVersion);
-                }
-              }}
-            >
-              <FormattedMessage defaultMessage="Add" description="Link to add metadata" />
-            </Typography.Link>
-          )}
-        </div>
       </div>
 
       <Spacer size="md" />
