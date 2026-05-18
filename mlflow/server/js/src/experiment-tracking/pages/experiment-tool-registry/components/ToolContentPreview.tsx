@@ -225,17 +225,9 @@ export const ToolContentPreview = ({
       <Spacer size="md" />
 
       <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
-
         {/* Server Configuration */}
-        <div>
-          <div css={{ fontWeight: 600, marginBottom: theme.spacing.md }}>
-            <FormattedMessage
-              defaultMessage="Server configuration:"
-              description="Label for server configuration"
-            />
-          </div>
-          {registeredTool?.parsed_server_json ? (
-            <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
+        {registeredTool?.parsed_server_json ? (
+          <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
               {/* Title (from server.json) */}
               {registeredTool.parsed_server_json.title && (
                 <div>
@@ -431,7 +423,6 @@ export const ToolContentPreview = ({
               )}
             </div>
           )}
-        </div>
 
         {/* Description */}
         {toolVersion.description && (
