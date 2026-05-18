@@ -182,6 +182,40 @@ export const ToolContentPreview = ({
           </>
         )}
 
+        {/* Website URL */}
+        {registeredTool?.parsed_server_json?.websiteUrl && (
+          <>
+            <Typography.Text bold>
+              <FormattedMessage defaultMessage="Website:" description="Label for website URL" />
+            </Typography.Text>
+            <Typography.Link
+              componentId="mlflow.tool-registry.details.website_link"
+              href={registeredTool.parsed_server_json.websiteUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {registeredTool.parsed_server_json.websiteUrl}
+            </Typography.Link>
+          </>
+        )}
+
+        {/* Repository */}
+        {registeredTool?.parsed_server_json?.repository?.url && (
+          <>
+            <Typography.Text bold>
+              <FormattedMessage defaultMessage="Repository:" description="Label for repository URL" />
+            </Typography.Text>
+            <Typography.Link
+              componentId="mlflow.tool-registry.details.repository_link"
+              href={registeredTool.parsed_server_json.repository.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {registeredTool.parsed_server_json.repository.url}
+            </Typography.Link>
+          </>
+        )}
+
         {/* Registered at */}
         <Typography.Text bold>
           <FormattedMessage defaultMessage="Registered at:" description="Label for registration timestamp" />
@@ -304,40 +338,6 @@ export const ToolContentPreview = ({
                       />
                     </div>
                   )}
-                </div>
-              )}
-
-              {/* Website URL */}
-              {registeredTool.parsed_server_json.websiteUrl && (
-                <div>
-                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
-                    <FormattedMessage defaultMessage="Website:" description="Label for website URL" />
-                  </div>
-                  <Typography.Link
-                    componentId="mlflow.tool-registry.details.website_link"
-                    href={registeredTool.parsed_server_json.websiteUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {registeredTool.parsed_server_json.websiteUrl}
-                  </Typography.Link>
-                </div>
-              )}
-
-              {/* Repository */}
-              {registeredTool.parsed_server_json.repository?.url && (
-                <div>
-                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
-                    <FormattedMessage defaultMessage="Repository:" description="Label for repository URL" />
-                  </div>
-                  <Typography.Link
-                    componentId="mlflow.tool-registry.details.repository_link"
-                    href={registeredTool.parsed_server_json.repository.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {registeredTool.parsed_server_json.repository.url}
-                  </Typography.Link>
                 </div>
               )}
 
