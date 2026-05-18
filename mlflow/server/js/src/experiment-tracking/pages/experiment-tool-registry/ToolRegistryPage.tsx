@@ -137,7 +137,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
 
   const { RegisterToolModal, openModal: openRegisterToolModal } = useRegisterToolModal({
     experimentId,
-    onSuccess: ({ internalName, displayName, serverVersion, description, serverJson, parsedServerJson }) => {
+    onSuccess: ({ internalName, displayName, serverVersion, serverJson, parsedServerJson }) => {
       setTools((prevTools) => {
         // Check if a tool with this internal_name already exists
         const existingToolIndex = prevTools.findIndex((tool) => tool.internal_name === internalName);
@@ -151,7 +151,6 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
 
           const newToolVersion: ToolVersion = {
             version: newVersion,
-            description: description || undefined,
             server_json: serverJson || undefined,
             creation_timestamp: timestamp,
             last_updated_timestamp: timestamp,
@@ -161,7 +160,6 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             ...existingTool,
             display_name: displayName,
             server_version: serverVersion,
-            description: description || existingTool.description,
             server_json: serverJson || existingTool.server_json,
             parsed_server_json: parsedServerJson,
             latest_version: newVersion,
@@ -177,7 +175,6 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
           // Add new tool with initial version
           const initialVersion: ToolVersion = {
             version: '1',
-            description: description || undefined,
             server_json: serverJson || undefined,
             creation_timestamp: timestamp,
             last_updated_timestamp: timestamp,
@@ -187,7 +184,6 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             internal_name: internalName,
             display_name: displayName,
             server_version: serverVersion,
-            description: description || undefined,
             server_json: serverJson || undefined,
             parsed_server_json: parsedServerJson,
             latest_version: '1',

@@ -133,7 +133,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
 
   const { RegisterToolModal, openModal: openCreateVersionModal } = useRegisterToolModal({
     experimentId,
-    onSuccess: ({ internalName, displayName, serverVersion, description, serverJson, parsedServerJson }) => {
+    onSuccess: ({ internalName, displayName, serverVersion, serverJson, parsedServerJson }) => {
       const tools = loadToolsFromStorage();
       const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
 
@@ -145,7 +145,6 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
 
         const newToolVersion: ToolVersion = {
           version: newVersion,
-          description: description || undefined,
           server_json: serverJson || undefined,
           creation_timestamp: timestamp,
           last_updated_timestamp: timestamp,

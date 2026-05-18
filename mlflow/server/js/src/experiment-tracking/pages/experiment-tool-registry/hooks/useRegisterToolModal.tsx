@@ -19,7 +19,6 @@ export const useRegisterToolModal = ({
     internalName: string;
     displayName?: string;
     serverVersion?: string;
-    description: string;
     serverJson: string;
     parsedServerJson?: ParsedServerJson;
   }) => void | Promise<any>;
@@ -29,12 +28,10 @@ export const useRegisterToolModal = ({
 
   const form = useForm<{
     displayName: string;
-    description: string;
     serverJson: string;
   }>({
     defaultValues: {
       displayName: '',
-      description: '',
       serverJson: '',
     },
   });
@@ -61,7 +58,7 @@ export const useRegisterToolModal = ({
     }
   }, [serverJsonValue, displayNameValue, form]);
 
-  const handleSubmit = async (values: { displayName: string; description: string; serverJson: string }) => {
+  const handleSubmit = async (values: { displayName: string; serverJson: string }) => {
     setIsLoading(true);
     setError(null);
 
@@ -122,7 +119,6 @@ export const useRegisterToolModal = ({
         internalName,
         displayName: values.displayName || undefined,
         serverVersion,
-        description: values.description,
         serverJson: values.serverJson,
         parsedServerJson: parsedFields,
         experimentId,
@@ -132,7 +128,6 @@ export const useRegisterToolModal = ({
         internalName,
         displayName: values.displayName || undefined,
         serverVersion,
-        description: values.description,
         serverJson: values.serverJson,
         parsedServerJson: parsedFields,
       });
@@ -202,21 +197,6 @@ export const useRegisterToolModal = ({
           <FormUI.Message type="error" message={form.formState.errors.displayName.message} />
         )}
         <Spacer />
-        <FormUI.Label htmlFor="mlflow.tools.create.description">
-          <FormattedMessage defaultMessage="Description (optional):" description="Label for MCP server description field" />
-        </FormUI.Label>
-        <RHFControlledComponents.TextArea
-          control={form.control}
-          id="mlflow.tools.create.description"
-          componentId="mlflow.tools.create.description"
-          name="description"
-          autoSize={{ minRows: 3, maxRows: 6 }}
-          placeholder={intl.formatMessage({
-            defaultMessage: 'Describe what this MCP server does',
-            description: 'A placeholder for the MCP server description in the create MCP server modal',
-          })}
-        />
-        <Spacer />
         <FormUI.Label htmlFor="mlflow.tools.create.serverJson">
           <FormattedMessage defaultMessage="Server definition (json):" description="Label for MCP server configuration field" />
         </FormUI.Label>
@@ -258,7 +238,6 @@ export const useRegisterToolModal = ({
     setError(null);
     form.reset({
       displayName: '',
-      description: '',
       serverJson: '',
     });
     setOpen(true);
