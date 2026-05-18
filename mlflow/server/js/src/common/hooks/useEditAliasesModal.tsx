@@ -190,43 +190,22 @@ export const useEditAliasesModal = ({
               closable={false}
             />
           )}
-          {conflictedAliases.map(({ alias, otherVersion }) => {
-            // Check if this is a cross-entity conflict (e.g., "server-name:version")
-            const versionStr = otherVersion?.version || '';
-            const isCrossEntityConflict = versionStr.includes(':');
-
-            let message;
-            if (isCrossEntityConflict) {
-              // Parse "entityName:version" format
-              const [entityName, versionNum] = versionStr.split(':', 2);
-              message = (
-                <FormattedMessage
-                  defaultMessage='The "{alias}" alias is also being used on {entityName} version {version}. Adding it to this version will remove it from {entityName} version {version}.'
-                  description="Alias editor > Warning about reusing alias from another entity"
-                  values={{ alias, entityName, version: versionNum }}
-                />
-              );
-            } else {
-              message = (
+          {conflictedAliases.map(({ alias, otherVersion }) => (
+            <Alert
+              componentId="mlflow.edit-aliases-modal.conflicted-alias-alert"
+              role="alert"
+              key={alias}
+              message={
                 <FormattedMessage
                   defaultMessage='The "{alias}" alias is also being used on version {otherVersion}. Adding it to this version will remove it from version {otherVersion}.'
                   description="Alias editor > Warning about reusing alias from the other version"
-                  values={{ otherVersion: versionStr, alias }}
+                  values={{ otherVersion: otherVersion?.version, alias }}
                 />
-              );
-            }
-
-            return (
-              <Alert
-                componentId="mlflow.edit-aliases-modal.conflicted-alias-alert"
-                role="alert"
-                key={alias}
-                message={message}
-                type="info"
-                closable={false}
-              />
-            );
-          })}
+              }
+              type="info"
+              closable={false}
+            />
+          ))}
           {errorMessage && (
             <Alert
               componentId="mlflow.edit-aliases-modal.error-alert"

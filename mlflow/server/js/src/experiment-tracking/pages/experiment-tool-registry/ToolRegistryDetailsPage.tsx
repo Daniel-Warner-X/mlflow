@@ -208,26 +208,6 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
     return result;
   }, [tool]);
 
-  // Build a global alias map including ALL tools for cross-tool conflict detection
-  // For the current tool, use the actual version. For other tools, use "toolName:version" format
-  const globalAliasMap = useMemo(() => {
-    const aliases: { alias: string; version: string }[] = [];
-
-    allTools.forEach((t) => {
-      t.aliases?.forEach(({ alias, version }) => {
-        if (t.name === decodedToolName) {
-          // Current tool - use actual version
-          aliases.push({ alias, version });
-        } else {
-          // Other tool - encode tool name in version for conflict detection
-          aliases.push({ alias, version: `${t.name}:${version}` });
-        }
-      });
-    });
-
-    return aliases;
-  }, [allTools, decodedToolName]);
-
   const getAliasesModalTitle = (version: string) => (
     <FormattedMessage
       defaultMessage="Add/edit alias for MCP server version {version}"
@@ -237,7 +217,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
   );
 
   const { EditAliasesModal, showEditAliasesModal } = useEditAliasesModal({
-    aliases: globalAliasMap,
+    aliases: tool?.aliases ?? [],
     onSuccess: refetch,
     getTitle: getAliasesModalTitle,
     onSave: async (currentlyEditedVersion: string, existingAliases: string[], draftAliases: string[]) => {
@@ -247,33 +227,23 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
       const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
 
       if (toolIndex >= 0) {
-        // Remove aliases from ALL tools (not just current tool)
-        // This handles cross-tool alias reassignment
-        const updatedTools = tools.map((t) => {
-          if (t.name === decodedToolName) {
-            // Current tool - remove old aliases for this version and add new ones
-            const otherAliases = (t.aliases || []).filter((a) => a.version !== currentlyEditedVersion);
-            const newAliases = draftAliases.map((alias) => ({
-              alias,
-              version: currentlyEditedVersion,
-            }));
-            return {
-              ...t,
-              aliases: [...otherAliases, ...newAliases],
-            };
-          } else {
-            // Other tools - remove any aliases that are being reassigned
-            const remainingAliases = (t.aliases || []).filter((a) => !draftAliases.includes(a.alias));
-            return {
-              ...t,
-              aliases: remainingAliases,
-            };
-          }
-        });
+        // Remove old aliases for this version
+        const otherAliases = (tool.aliases || []).filter((a) => a.version !== currentlyEditedVersion);
 
-        saveToolsToStorage(updatedTools);
-        setTool(updatedTools[toolIndex]);
-        setAllTools(updatedTools);
+        // Add new aliases for this version
+        const newAliases = draftAliases.map((alias) => ({
+          alias,
+          version: currentlyEditedVersion,
+        }));
+
+        const updatedTool: RegisteredTool = {
+          ...tool,
+          aliases: [...otherAliases, ...newAliases],
+        };
+
+        tools[toolIndex] = updatedTool;
+        saveToolsToStorage(tools);
+        setTool(updatedTool);
       }
     },
     description: (
