@@ -1,0 +1,57 @@
+image: node:25
+
+# Cache node modules for faster builds
+cache:
+  key:
+    files:
+      - mlflow/server/js/yarn.lock
+  paths:
+    - mlflow/server/js/node_modules/
+    - mlflow/server/js/.yarn/
+
+stages:
+  - build
+  - deploy
+
+# Build the React app
+build:
+  stage: build
+  script:
+    - cd mlflow/server/js
+    - yarn install --frozen-lockfile
+    - yarn build
+  artifacts:
+    paths:
+      - mlflow/server/js/build/
+    expire_in: 1 hour
+
+# Deploy to GitLab Pages
+pages:
+  stage: deploy
+  script:
+    # GitLab Pages expects build output in a 'public' directory at repo root
+    - mkdir -p public
+    - cp -r mlflow/server/js/build/* public/
+    # Create a simple redirect from root to the tool registry
+    - |
+      cat > public/index.html << 'EOF'
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <title>MLflow Tool Registry Demo</title>
+        <meta http-equiv="refresh" content="0; url=./static-files/index.html#/tools">
+      </head>
+      <body>
+        <p>Redirecting to MLflow Tool Registry...</p>
+        <p>If not redirected, <a href="./static-files/index.html#/tools">click here</a>.</p>
+      </body>
+      </html>
+      EOF
+  artifacts:
+    paths:
+      - public
+  only:
+    - master
+    - main
+    - add-experiment-tool-registry
