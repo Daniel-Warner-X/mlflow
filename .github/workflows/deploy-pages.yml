@@ -5,7 +5,7 @@ on:
     branches:
       - master
       - main
-      - add-experiment-tool-registry
+  workflow_dispatch:  # Allows manual triggering from Actions tab
 
 # Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
 permissions:
@@ -48,17 +48,32 @@ jobs:
         run: |
           mkdir -p _site
           cp -r mlflow/server/js/build/* _site/
+          # Create root redirect to tools page
           cat > _site/index.html << 'EOF'
           <!DOCTYPE html>
           <html>
           <head>
             <meta charset="utf-8">
             <title>MLflow Tool Registry Demo</title>
-            <meta http-equiv="refresh" content="0; url=./static-files/index.html#/tools">
+            <meta http-equiv="refresh" content="0; url=/mlflow/static-files/index.html#/tools">
           </head>
           <body>
             <p>Redirecting to MLflow Tool Registry...</p>
-            <p>If not redirected, <a href="./static-files/index.html#/tools">click here</a>.</p>
+            <p>If not redirected, <a href="/mlflow/static-files/index.html#/tools">click here</a>.</p>
+          </body>
+          </html>
+          EOF
+          # Create 404.html for SPA routing (GitHub Pages uses this for 404s)
+          cat > _site/404.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>MLflow Tool Registry Demo</title>
+            <meta http-equiv="refresh" content="0; url=/mlflow/static-files/index.html#/tools">
+          </head>
+          <body>
+            <p>Redirecting to MLflow Tool Registry...</p>
           </body>
           </html>
           EOF
