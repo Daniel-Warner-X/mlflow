@@ -170,6 +170,18 @@ export const ToolContentPreview = ({
           </>
         )}
 
+        {/* Description (from server.json) */}
+        {registeredTool?.parsed_server_json?.description && (
+          <>
+            <Typography.Text bold>
+              <FormattedMessage defaultMessage="Description:" description="Label for server description" />
+            </Typography.Text>
+            <Typography.Text>
+              {registeredTool.parsed_server_json.description}
+            </Typography.Text>
+          </>
+        )}
+
         {/* Registered at */}
         <Typography.Text bold>
           <FormattedMessage defaultMessage="Registered at:" description="Label for registration timestamp" />
@@ -228,28 +240,6 @@ export const ToolContentPreview = ({
         {/* Server Configuration */}
         {registeredTool?.parsed_server_json ? (
           <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-              {/* Title (from server.json) */}
-              {registeredTool.parsed_server_json.title && (
-                <div>
-                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
-                    <FormattedMessage defaultMessage="Title:" description="Label for server title" />
-                  </div>
-                  <div css={{ fontSize: theme.typography.fontSizeSm }}>{registeredTool.parsed_server_json.title}</div>
-                </div>
-              )}
-
-              {/* Description (from server.json) */}
-              {registeredTool.parsed_server_json.description && (
-                <div>
-                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: 2 }}>
-                    <FormattedMessage defaultMessage="Description:" description="Label for server description" />
-                  </div>
-                  <div css={{ fontSize: theme.typography.fontSizeSm }}>
-                    {registeredTool.parsed_server_json.description}
-                  </div>
-                </div>
-              )}
-
               {/* Package Configuration */}
               {registeredTool.parsed_server_json.packages && registeredTool.parsed_server_json.packages.length > 0 && (
                 <div>
