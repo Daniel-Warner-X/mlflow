@@ -17,7 +17,7 @@ export const useRegisterToolModal = ({
   experimentId?: string;
   onSuccess?: (result: {
     internalName: string;
-    displayName?: string;
+    displayName?: string; // Auto-extracted from server.json "title" field
     serverVersion?: string;
     serverJson: string;
     parsedServerJson?: ParsedServerJson;
@@ -27,11 +27,9 @@ export const useRegisterToolModal = ({
   const intl = useIntl();
 
   const form = useForm<{
-    displayName: string;
     serverJson: string;
   }>({
     defaultValues: {
-      displayName: '',
       serverJson: '',
     },
   });
@@ -40,25 +38,7 @@ export const useRegisterToolModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Watch serverJson field to auto-populate displayName from title
-  const serverJsonValue = form.watch('serverJson');
-  const displayNameValue = form.watch('displayName');
-
-  useEffect(() => {
-    // Only auto-populate if displayName is empty and serverJson is valid
-    if (!displayNameValue && serverJsonValue) {
-      try {
-        const parsed = JSON.parse(serverJsonValue);
-        if (parsed?.title) {
-          form.setValue('displayName', parsed.title);
-        }
-      } catch (e) {
-        // Ignore parse errors - user is probably still typing
-      }
-    }
-  }, [serverJsonValue, displayNameValue, form]);
-
-  const handleSubmit = async (values: { displayName: string; serverJson: string }) => {
+  const handleSubmit = async (values: { serverJson: string }) => {
     setIsLoading(true);
     setError(null);
 
@@ -73,8 +53,11 @@ export const useRegisterToolModal = ({
         return;
       }
 
+      // Handle both flat structure and nested "server" structure
+      const serverData = parsedServerJson?.server || parsedServerJson;
+
       // Extract required internal_name from server.json
-      const internalName = parsedServerJson?.name;
+      const internalName = serverData?.name;
       if (!internalName) {
         setError(new Error('Server configuration must include a "name" field'));
         setIsLoading(false);
@@ -83,17 +66,17 @@ export const useRegisterToolModal = ({
 
       // Extract and structure parsed fields from server.json
       const parsedFields: ParsedServerJson = {
-        title: parsedServerJson?.title,
-        description: parsedServerJson?.description,
-        version: parsedServerJson?.version,
-        websiteUrl: parsedServerJson?.websiteUrl,
-        repository: parsedServerJson?.repository
+        title: serverData?.title,
+        description: serverData?.description,
+        version: serverData?.version,
+        websiteUrl: serverData?.websiteUrl,
+        repository: serverData?.repository
           ? {
-              url: parsedServerJson.repository.url,
-              source: parsedServerJson.repository.source,
+              url: serverData.repository.url,
+              source: serverData.repository.source,
             }
           : undefined,
-        packages: parsedServerJson?.packages?.map((pkg: any) => ({
+        packages: serverData?.packages?.map((pkg: any) => ({
           runtimeHint: pkg.runtimeHint,
           identifier: pkg.identifier,
           version: pkg.version,
@@ -102,14 +85,20 @@ export const useRegisterToolModal = ({
           runtimeArguments: pkg.runtimeArguments,
           packageArguments: pkg.packageArguments,
         })),
-        icons: parsedServerJson?.icons?.map((icon: any) => ({
+        icons: serverData?.icons?.map((icon: any) => ({
           src: icon.src,
           mimeType: icon.mimeType,
         })),
       };
 
       // Extract optional server_version from server.json
-      const serverVersion = parsedServerJson?.version;
+      const serverVersion = serverData?.version;
+
+      // Extract display name from title in JSON
+      const displayName = serverData?.title;
+
+      // Normalize serverJson to always store the flat structure (unwrap "server" if present)
+      const normalizedServerJson = JSON.stringify(serverData, null, 2);
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 500));
@@ -117,18 +106,18 @@ export const useRegisterToolModal = ({
       // In a real implementation, this would call an API to register the tool
       console.log('Registering tool:', {
         internalName,
-        displayName: values.displayName || undefined,
+        displayName: displayName || undefined,
         serverVersion,
-        serverJson: values.serverJson,
+        serverJson: normalizedServerJson,
         parsedServerJson: parsedFields,
         experimentId,
       });
 
       onSuccess?.({
         internalName,
-        displayName: values.displayName || undefined,
+        displayName: displayName || undefined,
         serverVersion,
-        serverJson: values.serverJson,
+        serverJson: normalizedServerJson,
         parsedServerJson: parsedFields,
       });
       setOpen(false);
@@ -173,39 +162,9 @@ export const useRegisterToolModal = ({
             <Spacer />
           </>
         )}
-        <FormUI.Label htmlFor="mlflow.tools.create.displayName">
-          <FormattedMessage defaultMessage="Display name (optional):" description="Label for MCP server display name field" />
-        </FormUI.Label>
-        <FormUI.Hint>
-          <FormattedMessage
-            defaultMessage="Optional friendly name. If not provided, will use the name from server.json"
-            description="Help text for MCP server display name field"
-          />
-        </FormUI.Hint>
-        <RHFControlledComponents.Input
-          control={form.control}
-          id="mlflow.tools.create.displayName"
-          componentId="mlflow.tools.create.displayName"
-          name="displayName"
-          placeholder={intl.formatMessage({
-            defaultMessage: 'e.g., Analytics Platform MCP',
-            description: 'A placeholder for the MCP server display name in the create MCP server modal',
-          })}
-          validationState={form.formState.errors.displayName ? 'error' : undefined}
-        />
-        {form.formState.errors.displayName && (
-          <FormUI.Message type="error" message={form.formState.errors.displayName.message} />
-        )}
-        <Spacer />
         <FormUI.Label htmlFor="mlflow.tools.create.serverJson">
-          <FormattedMessage defaultMessage="Server definition (json):" description="Label for MCP server configuration field" />
+          <FormattedMessage defaultMessage="server.json:" description="Label for MCP server configuration field" />
         </FormUI.Label>
-        <FormUI.Hint>
-          <FormattedMessage
-            defaultMessage='Must include a "name" field (e.g., io.github.anthropic/brave-search)'
-            description="Help text for MCP server configuration field"
-          />
-        </FormUI.Hint>
         <RHFControlledComponents.TextArea
           control={form.control}
           id="mlflow.tools.create.serverJson"
@@ -237,7 +196,6 @@ export const useRegisterToolModal = ({
   const openModal = () => {
     setError(null);
     form.reset({
-      displayName: '',
       serverJson: '',
     });
     setOpen(true);

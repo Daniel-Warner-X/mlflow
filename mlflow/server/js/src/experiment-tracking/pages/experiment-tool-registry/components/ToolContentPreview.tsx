@@ -6,6 +6,7 @@ import {
   Typography,
   useDesignSystemTheme,
   PlayIcon,
+  Checkbox,
 } from '@databricks/design-system';
 import { useState } from 'react';
 import type { RegisteredTool, ToolVersion } from '../types';
@@ -20,6 +21,7 @@ export const ToolContentPreview = ({
   aliasesByVersion,
   registeredTool,
   onUpdatedContent,
+  onUpdateTool,
   showEditAliasesModal,
   showEditToolVersionMetadataModal,
   allTools,
@@ -30,6 +32,7 @@ export const ToolContentPreview = ({
   aliasesByVersion: Record<string, string[]>;
   registeredTool?: RegisteredTool;
   onUpdatedContent?: () => void;
+  onUpdateTool?: (updatedTool: RegisteredTool) => void;
   showEditAliasesModal?: (versionNumber: string) => void;
   showEditToolVersionMetadataModal?: (toolName: string, toolVersion: ToolVersion) => void;
   allTools?: RegisteredTool[];
@@ -127,33 +130,78 @@ export const ToolContentPreview = ({
           {registeredTool?.internal_name}
         </Typography.Text>
 
-        {/* Display Name (editable) */}
-        <Typography.Text bold>
-          <FormattedMessage defaultMessage="Title:" description="Label for display name" />
-        </Typography.Text>
-        <div>
-          {registeredTool?.display_name ? (
-            <div css={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+        {/* Display Name (from server.json) */}
+        {registeredTool?.display_name && (
+          <>
+            <Typography.Text bold>
+              <FormattedMessage defaultMessage="Title:" description="Label for display name" />
+            </Typography.Text>
+            <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
               <Typography.Text>{registeredTool.display_name}</Typography.Text>
-              <Typography.Link
-                componentId="mlflow.tool-registry.details.edit_display_name"
-                onClick={() => {
-                  // TODO: Implement edit display name modal
-                  console.log('Edit display name');
+              <Checkbox
+                componentId="mlflow.tool-registry.details.use_display_name_checkbox"
+                isChecked={registeredTool.use_display_name_in_list ?? false}
+                onChange={(checked) => {
+                  if (registeredTool && onUpdateTool) {
+                    onUpdateTool({
+                      ...registeredTool,
+                      use_display_name_in_list: checked,
+                    });
+                  }
                 }}
               >
-                <FormattedMessage defaultMessage="Edit" description="Link to edit display name" />
+                <Typography.Text css={{ fontSize: theme.typography.fontSizeSm }}>
+                  <FormattedMessage
+                    defaultMessage="Display name"
+                    description="Checkbox label to use display name in table"
+                  />
+                </Typography.Text>
+              </Checkbox>
+            </div>
+          </>
+        )}
+
+        {/* Aliases */}
+        <Typography.Text bold>
+          <FormattedMessage defaultMessage="Aliases:" description="Label for aliases" />
+        </Typography.Text>
+        <div>
+          {aliases.length > 0 ? (
+            <div css={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', alignItems: 'center' }}>
+              {aliases.map((alias) => (
+                <span
+                  key={alias}
+                  css={{
+                    padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
+                    backgroundColor: theme.colors.backgroundSecondary,
+                    borderRadius: theme.borders.borderRadiusMd,
+                    fontSize: theme.typography.fontSizeSm,
+                  }}
+                >
+                  @ {alias}
+                </span>
+              ))}
+              <Typography.Link
+                componentId="mlflow.tool-registry.details.edit_alias"
+                onClick={() => {
+                  if (toolVersion && showEditAliasesModal) {
+                    showEditAliasesModal(toolVersion.version);
+                  }
+                }}
+              >
+                <FormattedMessage defaultMessage="Edit" description="Link to edit aliases" />
               </Typography.Link>
             </div>
           ) : (
             <Typography.Link
-              componentId="mlflow.tool-registry.details.add_display_name"
+              componentId="mlflow.tool-registry.details.add_alias"
               onClick={() => {
-                // TODO: Implement add display name modal
-                console.log('Add display name');
+                if (toolVersion && showEditAliasesModal) {
+                  showEditAliasesModal(toolVersion.version);
+                }
               }}
             >
-              <FormattedMessage defaultMessage="Add" description="Link to add display name" />
+              <FormattedMessage defaultMessage="Add" description="Link to add aliases" />
             </Typography.Link>
           )}
         </div>
@@ -222,50 +270,73 @@ export const ToolContentPreview = ({
         </Typography.Text>
         <Typography.Text>{Utils.formatTimestamp(toolVersion.creation_timestamp, intl)}</Typography.Text>
 
-        {/* Aliases */}
-        <Typography.Text bold>
-          <FormattedMessage defaultMessage="Aliases:" description="Label for aliases" />
-        </Typography.Text>
-        <div>
-          {aliases.length > 0 ? (
-            <div css={{ display: 'flex', gap: theme.spacing.xs, flexWrap: 'wrap', alignItems: 'center' }}>
-              {aliases.map((alias) => (
-                <span
-                  key={alias}
+        {/* Package Configuration */}
+        {registeredTool?.parsed_server_json?.packages && registeredTool.parsed_server_json.packages.length > 0 && (
+          <>
+            <Typography.Text bold>
+              {registeredTool.parsed_server_json.packages.length === 1 ? (
+                <FormattedMessage
+                  defaultMessage="Package:"
+                  description="Label for package configuration (singular)"
+                />
+              ) : (
+                <FormattedMessage
+                  defaultMessage="Packages:"
+                  description="Label for package configuration (plural)"
+                />
+              )}
+            </Typography.Text>
+            <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
+              {registeredTool.parsed_server_json.packages.map((pkg, index) => (
+                <div
+                  key={index}
                   css={{
-                    padding: `${theme.spacing.xs}px ${theme.spacing.sm}px`,
                     backgroundColor: theme.colors.backgroundSecondary,
+                    padding: theme.spacing.sm,
                     borderRadius: theme.borders.borderRadiusMd,
                     fontSize: theme.typography.fontSizeSm,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
                   }}
                 >
-                  @ {alias}
-                </span>
+                  {pkg.runtimeHint && (
+                    <div>
+                      <span css={{ fontWeight: 500 }}>Runtime: </span>
+                      <span css={{ fontFamily: 'monospace' }}>{pkg.runtimeHint}</span>
+                    </div>
+                  )}
+                  {pkg.identifier && (
+                    <div>
+                      <span css={{ fontWeight: 500 }}>Package: </span>
+                      <span css={{ fontFamily: 'monospace' }}>{pkg.identifier}</span>
+                    </div>
+                  )}
+                  {pkg.version && (
+                    <div>
+                      <span css={{ fontWeight: 500 }}>Version: </span>
+                      <span css={{ fontFamily: 'monospace' }}>{pkg.version}</span>
+                    </div>
+                  )}
+                  {pkg.registryType && (
+                    <div>
+                      <span css={{ fontWeight: 500 }}>Registry: </span>
+                      <span css={{ fontFamily: 'monospace' }}>{pkg.registryType}</span>
+                    </div>
+                  )}
+                  {pkg.environmentVariables && pkg.environmentVariables.length > 0 && (
+                    <div>
+                      <span css={{ fontWeight: 500 }}>Environment variables: </span>
+                      <span css={{ fontFamily: 'monospace' }}>
+                        {pkg.environmentVariables.map((envVar) => Object.keys(envVar)[0]).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                </div>
               ))}
-              <Typography.Link
-                componentId="mlflow.tool-registry.details.edit_alias"
-                onClick={() => {
-                  if (toolVersion && showEditAliasesModal) {
-                    showEditAliasesModal(toolVersion.version);
-                  }
-                }}
-              >
-                <FormattedMessage defaultMessage="Edit" description="Link to edit aliases" />
-              </Typography.Link>
             </div>
-          ) : (
-            <Typography.Link
-              componentId="mlflow.tool-registry.details.add_alias"
-              onClick={() => {
-                if (toolVersion && showEditAliasesModal) {
-                  showEditAliasesModal(toolVersion.version);
-                }
-              }}
-            >
-              <FormattedMessage defaultMessage="Add" description="Link to add aliases" />
-            </Typography.Link>
-          )}
-        </div>
+          </>
+        )}
       </div>
 
       <Spacer size="md" />
@@ -274,73 +345,6 @@ export const ToolContentPreview = ({
         {/* Server Configuration */}
         {registeredTool?.parsed_server_json ? (
           <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
-              {/* Package Configuration */}
-              {registeredTool.parsed_server_json.packages && registeredTool.parsed_server_json.packages.length > 0 && (
-                <div>
-                  <div css={{ fontWeight: 500, fontSize: theme.typography.fontSizeSm, marginBottom: theme.spacing.xs }}>
-                    <FormattedMessage defaultMessage="Package:" description="Label for package configuration" />
-                  </div>
-                  {(() => {
-                    const pkg = registeredTool.parsed_server_json.packages![0];
-                    return (
-                      <div
-                        css={{
-                          backgroundColor: theme.colors.backgroundSecondary,
-                          padding: theme.spacing.sm,
-                          borderRadius: theme.borders.borderRadiusMd,
-                          fontSize: theme.typography.fontSizeSm,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: 4,
-                        }}
-                      >
-                        {pkg.runtimeHint && (
-                          <div>
-                            <span css={{ fontWeight: 500 }}>Runtime: </span>
-                            <span css={{ fontFamily: 'monospace' }}>{pkg.runtimeHint}</span>
-                          </div>
-                        )}
-                        {pkg.identifier && (
-                          <div>
-                            <span css={{ fontWeight: 500 }}>Package: </span>
-                            <span css={{ fontFamily: 'monospace' }}>{pkg.identifier}</span>
-                          </div>
-                        )}
-                        {pkg.version && (
-                          <div>
-                            <span css={{ fontWeight: 500 }}>Version: </span>
-                            <span css={{ fontFamily: 'monospace' }}>{pkg.version}</span>
-                          </div>
-                        )}
-                        {pkg.registryType && (
-                          <div>
-                            <span css={{ fontWeight: 500 }}>Registry: </span>
-                            <span css={{ fontFamily: 'monospace' }}>{pkg.registryType}</span>
-                          </div>
-                        )}
-                        {pkg.environmentVariables && pkg.environmentVariables.length > 0 && (
-                          <div>
-                            <span css={{ fontWeight: 500 }}>Environment variables: </span>
-                            <span css={{ fontFamily: 'monospace' }}>
-                              {pkg.environmentVariables.map((envVar) => Object.keys(envVar)[0]).join(', ')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  {registeredTool.parsed_server_json.packages.length > 1 && (
-                    <div css={{ fontSize: theme.typography.fontSizeSm, color: theme.colors.textSecondary, marginTop: 4 }}>
-                      <FormattedMessage
-                        defaultMessage="and {count} more"
-                        description="Indicator for additional packages"
-                        values={{ count: registeredTool.parsed_server_json.packages.length - 1 }}
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
               {/* View full configuration toggle */}
               <details css={{ marginTop: theme.spacing.xs }}>
                 <summary

@@ -33,7 +33,7 @@ const useToolsTableColumns = () => {
           defaultMessage: 'Name',
           description: 'Header for the name column in the tool registry table',
         }),
-        accessorFn: (row) => row.display_name || row.internal_name,
+        accessorFn: (row) => (row.use_display_name_in_list && row.display_name) ? row.display_name : row.internal_name,
         id: 'name',
         cell: ToolRegistryListTableNameCell,
       },
@@ -42,17 +42,8 @@ const useToolsTableColumns = () => {
           defaultMessage: 'Description',
           description: 'Header for the description column in the tool registry table',
         }),
-        accessorKey: 'description',
+        accessorFn: (row) => row.parsed_server_json?.description || '',
         id: 'description',
-        cell: ({ getValue }) => <span>{getValue() as string}</span>,
-      },
-      {
-        header: intl.formatMessage({
-          defaultMessage: 'Latest version',
-          description: 'Header for the latest version column in the tool registry table',
-        }),
-        accessorKey: 'latest_version',
-        id: 'latestVersion',
         cell: ({ getValue }) => <span>{getValue() as string}</span>,
       },
       {

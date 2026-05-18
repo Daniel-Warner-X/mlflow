@@ -50,6 +50,7 @@ export interface RegisteredTool {
   tags?: Array<{ key: string; value: string }>;
   aliases?: ToolAlias[];
   versions?: ToolVersion[];
+  use_display_name_in_list?: boolean; // Whether to show display_name instead of internal_name in the table
 }
 
 export interface ToolsTableMetadata {
