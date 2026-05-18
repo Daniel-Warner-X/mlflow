@@ -121,7 +121,7 @@ export const ToolContentPreview = ({
       >
         {/* Internal Name (read-only) */}
         <Typography.Text bold>
-          <FormattedMessage defaultMessage="Internal name:" description="Label for internal name from server.json" />
+          <FormattedMessage defaultMessage="Name:" description="Label for internal name from server.json" />
         </Typography.Text>
         <Typography.Text css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm }}>
           {registeredTool?.internal_name}
