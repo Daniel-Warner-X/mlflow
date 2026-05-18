@@ -110,11 +110,17 @@ export const useEditAliasesModal = ({
       });
   };
 
+  // Check if any alias is the reserved "latest" alias (case-insensitive)
+  const hasReservedAlias = useMemo(
+    () => draftAliases.some((alias) => alias.toLowerCase() === 'latest'),
+    [draftAliases],
+  );
+
   // Indicates if there is any pending change to the alias set
   const isPristine = isEqual(existingAliases.slice().sort(), draftAliases.slice().sort());
   const isExceedingLimit = draftAliases.length > MAX_ALIASES_PER_MODEL_VERSION;
 
-  const isInvalid = isPristine || isExceedingLimit;
+  const isInvalid = isPristine || isExceedingLimit || hasReservedAlias;
 
   const EditAliasesModal = (
     <Modal
@@ -155,6 +161,20 @@ export const useEditAliasesModal = ({
           />
         </LegacyForm.Item>
         <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs }}>
+          {hasReservedAlias && (
+            <Alert
+              componentId="mlflow.edit-aliases-modal.reserved-alias-alert"
+              role="alert"
+              message={
+                <FormattedMessage
+                  defaultMessage="'latest' alias name (case insensitive) is reserved."
+                  description="Alias editor > Warning about using reserved 'latest' alias name"
+                />
+              }
+              type="error"
+              closable={false}
+            />
+          )}
           {isExceedingLimit && (
             <Alert
               componentId="mlflow.edit-aliases-modal.exceeding-limit-alert"
