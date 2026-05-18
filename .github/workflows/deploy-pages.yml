@@ -63,8 +63,17 @@ jobs:
           if [ -f mlflow/server/js/build/manifest.json ]; then
             cp mlflow/server/js/build/manifest.json _site/static-files/
           fi
-          # Add redirect script to index.html using echo and temp file
-          cat _site/index.html | sed 's|</body>|<script>if(window.location.hash===""||window.location.hash==="#/"){window.location.hash="#/tools";}</script></body>|' > _site/index-new.html
+          # Add redirect script to index.html
+          # Create the redirect script in a temp file first
+          cat > /tmp/redirect.js << 'SCRIPT_EOF'
+          <script>
+            if (window.location.hash === "" || window.location.hash === "#/") {
+              window.location.hash = "#/tools";
+            }
+          </script>
+          SCRIPT_EOF
+          # Insert before </body> tag using awk
+          awk '/<\/body>/ { system("cat /tmp/redirect.js") } { print }' _site/index.html > _site/index-new.html
           mv _site/index-new.html _site/index.html
           # Create 404.html for SPA routing
           cp _site/index.html _site/404.html
