@@ -63,8 +63,9 @@ jobs:
           if [ -f mlflow/server/js/build/manifest.json ]; then
             cp mlflow/server/js/build/manifest.json _site/static-files/
           fi
-          # Update index.html to redirect to tools page by default
-          sed -i 's|<div id="root" class="mlflow-ui-container"></div>|<div id="root" class="mlflow-ui-container"></div><script>if(window.location.hash === "" || window.location.hash === "#/") { window.location.hash = "#/tools"; }</script>|' _site/index.html
+          # Add redirect script to index.html using echo and temp file
+          cat _site/index.html | sed 's|</body>|<script>if(window.location.hash===""||window.location.hash==="#/"){window.location.hash="#/tools";}</script></body>|' > _site/index-new.html
+          mv _site/index-new.html _site/index.html
           # Create 404.html for SPA routing
           cp _site/index.html _site/404.html
 
