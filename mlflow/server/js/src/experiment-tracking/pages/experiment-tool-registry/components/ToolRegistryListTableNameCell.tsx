@@ -13,16 +13,17 @@ export const ToolRegistryListTableNameCell: ColumnDef<RegisteredTool>['cell'] = 
 }) => {
   const name = getValue<string>();
   const { experimentId } = (meta || {}) as ToolsTableMetadata;
+  const displayName = original.display_name || original.internal_name;
 
-  if (!original.name) {
+  if (!original.internal_name) {
     return name;
   }
   return (
     <Link
       componentId="mlflow.tool-registry.list.tool_name_link"
-      to={Routes.getToolDetailsPageRoute(encodeURIComponent(original.name))}
+      to={Routes.getToolDetailsPageRoute(encodeURIComponent(original.internal_name))}
     >
-      {name}
+      {displayName}
     </Link>
   );
 };

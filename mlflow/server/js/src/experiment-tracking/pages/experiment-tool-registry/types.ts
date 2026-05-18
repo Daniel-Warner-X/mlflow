@@ -13,10 +13,12 @@ export interface ToolVersion {
 }
 
 export interface RegisteredTool {
-  name: string;
+  internal_name: string; // From server.json, immutable
+  display_name?: string; // Optional, mutable, user-friendly override
+  server_version?: string; // From server.json
   description?: string;
   server_json?: string;
-  latest_version?: string;
+  latest_version?: string; // Our registry version tracking (1, 2, 3...)
   last_updated_timestamp?: number;
   tags?: Array<{ key: string; value: string }>;
   aliases?: ToolAlias[];

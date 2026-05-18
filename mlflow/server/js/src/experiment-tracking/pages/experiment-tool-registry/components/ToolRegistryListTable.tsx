@@ -33,7 +33,7 @@ const useToolsTableColumns = () => {
           defaultMessage: 'Name',
           description: 'Header for the name column in the tool registry table',
         }),
-        accessorKey: 'name',
+        accessorFn: (row) => row.display_name || row.internal_name,
         id: 'name',
         cell: ToolRegistryListTableNameCell,
       },

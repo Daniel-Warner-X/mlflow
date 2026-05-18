@@ -110,6 +110,61 @@ export const ToolContentPreview = ({
       <Spacer size="md" />
 
       <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.md }}>
+        {/* Internal Name (read-only) */}
+        <div>
+          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
+            <FormattedMessage defaultMessage="Internal name:" description="Label for internal name from server.json" />
+          </div>
+          <div css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm }}>
+            {registeredTool?.internal_name}
+          </div>
+        </div>
+
+        {/* Display Name (editable) */}
+        <div>
+          <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
+            <FormattedMessage defaultMessage="Display name:" description="Label for display name" />
+          </div>
+          <div css={{ marginTop: theme.spacing.xs }}>
+            {registeredTool?.display_name ? (
+              <div css={{ display: 'flex', gap: theme.spacing.xs, alignItems: 'center' }}>
+                <span>{registeredTool.display_name}</span>
+                <Typography.Link
+                  componentId="mlflow.tool-registry.details.edit_display_name"
+                  onClick={() => {
+                    // TODO: Implement edit display name modal
+                    console.log('Edit display name');
+                  }}
+                >
+                  <FormattedMessage defaultMessage="Edit" description="Link to edit display name" />
+                </Typography.Link>
+              </div>
+            ) : (
+              <Typography.Link
+                componentId="mlflow.tool-registry.details.add_display_name"
+                onClick={() => {
+                  // TODO: Implement add display name modal
+                  console.log('Add display name');
+                }}
+              >
+                <FormattedMessage defaultMessage="Add" description="Link to add display name" />
+              </Typography.Link>
+            )}
+          </div>
+        </div>
+
+        {/* Server Version (from server.json) */}
+        {registeredTool?.server_version && (
+          <div>
+            <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>
+              <FormattedMessage defaultMessage="Server version:" description="Label for server version from server.json" />
+            </div>
+            <div css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm }}>
+              {registeredTool.server_version}
+            </div>
+          </div>
+        )}
+
         {/* Registered at */}
         <div>
           <div css={{ fontWeight: 600, marginBottom: theme.spacing.xs }}>

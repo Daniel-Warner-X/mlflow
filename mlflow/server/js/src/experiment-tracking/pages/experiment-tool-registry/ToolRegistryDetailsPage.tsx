@@ -69,8 +69,27 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
 
     // Load all tools from localStorage
     const tools = loadToolsFromStorage();
-    setAllTools(tools);
-    let foundTool = tools.find((t) => t.name === decodedToolName);
+
+    // Migrate tools from old structure (name -> internal_name)
+    const migratedTools = tools.map((t: any) => {
+      if (t.name && !t.internal_name) {
+        return {
+          ...t,
+          internal_name: t.name,
+          display_name: undefined,
+          server_version: undefined,
+        };
+      }
+      return t;
+    });
+
+    // Save migrated tools if any were updated
+    if (migratedTools.some((t: any, i: number) => t !== tools[i])) {
+      saveToolsToStorage(migratedTools);
+    }
+
+    setAllTools(migratedTools);
+    let foundTool = migratedTools.find((t) => t.internal_name === decodedToolName);
 
     // Migrate old tools without versions array
     if (foundTool && (!foundTool.versions || foundTool.versions.length === 0)) {
@@ -89,7 +108,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
       };
 
       // Save the migrated tool back to localStorage
-      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+      const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
       if (toolIndex >= 0) {
         tools[toolIndex] = foundTool;
         saveToolsToStorage(tools);
@@ -108,15 +127,15 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
 
   const refetch = () => {
     const tools = loadToolsFromStorage();
-    const foundTool = tools.find((t) => t.name === decodedToolName);
+    const foundTool = tools.find((t) => t.internal_name === decodedToolName);
     setTool(foundTool || null);
   };
 
   const { RegisterToolModal, openModal: openCreateVersionModal } = useRegisterToolModal({
     experimentId,
-    onSuccess: ({ toolName: newToolName, description, serverJson }) => {
+    onSuccess: ({ internalName, displayName, serverVersion, description, serverJson }) => {
       const tools = loadToolsFromStorage();
-      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+      const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
 
       if (toolIndex >= 0) {
         const existingTool = tools[toolIndex];
@@ -134,6 +153,8 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
 
         const updatedTool: RegisteredTool = {
           ...existingTool,
+          display_name: displayName,
+          server_version: serverVersion,
           latest_version: newVersion,
           last_updated_timestamp: timestamp,
           versions: [newToolVersion, ...(existingTool.versions || [])],
@@ -151,7 +172,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
     if (!tool) return;
 
     const tools = loadToolsFromStorage();
-    const updatedTools = tools.filter((t) => t.name !== tool.name);
+    const updatedTools = tools.filter((t) => t.internal_name !== tool.name);
     saveToolsToStorage(updatedTools);
 
     // Navigate back to MCP Registry
@@ -166,7 +187,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
     if (!tool) return;
 
     const tools = loadToolsFromStorage();
-    const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+    const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
 
     if (toolIndex >= 0) {
       const updatedVersions = (tool.versions || []).filter((v) => v.version !== version);
@@ -224,7 +245,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
       if (!tool) return;
 
       const tools = loadToolsFromStorage();
-      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+      const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
 
       if (toolIndex >= 0) {
         // Remove old aliases for this version
@@ -257,7 +278,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
   const { EditToolVersionMetadataModal, showEditToolVersionMetadataModal } = useUpdateToolVersionMetadataModal({
     onSuccess: ({ toolName, toolVersion, newMetadata }) => {
       const tools = loadToolsFromStorage();
-      const toolIndex = tools.findIndex((t) => t.name === decodedToolName);
+      const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
 
       if (toolIndex >= 0) {
         const updatedVersions = (tool?.versions || []).map((v) => {
@@ -339,7 +360,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
       <Spacer shrinks={false} />
       <Header
         breadcrumbs={breadcrumbs}
-        title={tool.name}
+        title={tool.display_name || tool.internal_name}
         buttons={
           <>
             <DropdownMenu.Root>

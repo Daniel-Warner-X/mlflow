@@ -14,18 +14,24 @@ export const useRegisterToolModal = ({
   onSuccess,
 }: {
   experimentId?: string;
-  onSuccess?: (result: { toolName: string; description: string; serverJson: string }) => void | Promise<any>;
+  onSuccess?: (result: {
+    internalName: string;
+    displayName?: string;
+    serverVersion?: string;
+    description: string;
+    serverJson: string;
+  }) => void | Promise<any>;
 }) => {
   const [open, setOpen] = useState(false);
   const intl = useIntl();
 
   const form = useForm<{
-    name: string;
+    displayName: string;
     description: string;
     serverJson: string;
   }>({
     defaultValues: {
-      name: '',
+      displayName: '',
       description: '',
       serverJson: '',
     },
@@ -35,34 +41,52 @@ export const useRegisterToolModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const handleSubmit = async (values: { name: string; description: string; serverJson: string }) => {
+  const handleSubmit = async (values: { displayName: string; description: string; serverJson: string }) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Validate JSON if provided
-      if (values.serverJson) {
-        try {
-          JSON.parse(values.serverJson);
-        } catch (e) {
-          setError(new Error('Invalid JSON format in server configuration'));
-          setIsLoading(false);
-          return;
-        }
+      // Validate and parse server.json
+      let parsedServerJson: any;
+      try {
+        parsedServerJson = JSON.parse(values.serverJson);
+      } catch (e) {
+        setError(new Error('Invalid JSON format in server configuration'));
+        setIsLoading(false);
+        return;
       }
+
+      // Extract required internal_name from server.json
+      const internalName = parsedServerJson?.name;
+      if (!internalName) {
+        setError(new Error('Server configuration must include a "name" field'));
+        setIsLoading(false);
+        return;
+      }
+
+      // Extract optional server_version from server.json
+      const serverVersion = parsedServerJson?.version;
 
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 500));
 
       // In a real implementation, this would call an API to register the tool
       console.log('Registering tool:', {
-        name: values.name,
+        internalName,
+        displayName: values.displayName || undefined,
+        serverVersion,
         description: values.description,
         serverJson: values.serverJson,
         experimentId,
       });
 
-      onSuccess?.({ toolName: values.name, description: values.description, serverJson: values.serverJson });
+      onSuccess?.({
+        internalName,
+        displayName: values.displayName || undefined,
+        serverVersion,
+        description: values.description,
+        serverJson: values.serverJson,
+      });
       setOpen(false);
     } catch (err) {
       setError(err as Error);
@@ -105,38 +129,28 @@ export const useRegisterToolModal = ({
             <Spacer />
           </>
         )}
-        <FormUI.Label htmlFor="mlflow.tools.create.name">
-          <FormattedMessage defaultMessage="Name:" description="Label for MCP server name field" />
+        <FormUI.Label htmlFor="mlflow.tools.create.displayName">
+          <FormattedMessage defaultMessage="Display name (optional):" description="Label for MCP server display name field" />
         </FormUI.Label>
+        <FormUI.Hint>
+          <FormattedMessage
+            defaultMessage="Optional friendly name. If not provided, will use the name from server.json"
+            description="Help text for MCP server display name field"
+          />
+        </FormUI.Hint>
         <RHFControlledComponents.Input
           control={form.control}
-          id="mlflow.tools.create.name"
-          componentId="mlflow.tools.create.name"
-          name="name"
-          rules={{
-            required: {
-              value: true,
-              message: intl.formatMessage({
-                defaultMessage: 'Name is required',
-                description: 'A validation state for the MCP server name in the create MCP server modal',
-              }),
-            },
-            pattern: {
-              value: /^[a-zA-Z0-9_\-.]+$/,
-              message: intl.formatMessage({
-                defaultMessage: 'Only alphanumeric characters, underscores, hyphens, and dots are allowed',
-                description: 'A validation state for the MCP server name format in the create MCP server modal',
-              }),
-            },
-          }}
+          id="mlflow.tools.create.displayName"
+          componentId="mlflow.tools.create.displayName"
+          name="displayName"
           placeholder={intl.formatMessage({
-            defaultMessage: 'Provide a unique MCP server name',
-            description: 'A placeholder for the MCP server name in the create MCP server modal',
+            defaultMessage: 'e.g., Analytics Platform MCP',
+            description: 'A placeholder for the MCP server display name in the create MCP server modal',
           })}
-          validationState={form.formState.errors.name ? 'error' : undefined}
+          validationState={form.formState.errors.displayName ? 'error' : undefined}
         />
-        {form.formState.errors.name && (
-          <FormUI.Message type="error" message={form.formState.errors.name.message} />
+        {form.formState.errors.displayName && (
+          <FormUI.Message type="error" message={form.formState.errors.displayName.message} />
         )}
         <Spacer />
         <FormUI.Label htmlFor="mlflow.tools.create.description">
@@ -157,11 +171,26 @@ export const useRegisterToolModal = ({
         <FormUI.Label htmlFor="mlflow.tools.create.serverJson">
           <FormattedMessage defaultMessage="Server definition (json):" description="Label for MCP server configuration field" />
         </FormUI.Label>
+        <FormUI.Hint>
+          <FormattedMessage
+            defaultMessage='Must include a "name" field (e.g., io.github.anthropic/brave-search)'
+            description="Help text for MCP server configuration field"
+          />
+        </FormUI.Hint>
         <RHFControlledComponents.TextArea
           control={form.control}
           id="mlflow.tools.create.serverJson"
           componentId="mlflow.tools.create.serverJson"
           name="serverJson"
+          rules={{
+            required: {
+              value: true,
+              message: intl.formatMessage({
+                defaultMessage: 'Server definition is required',
+                description: 'A validation state for the MCP server configuration in the create MCP server modal',
+              }),
+            },
+          }}
           autoSize={{ minRows: 6, maxRows: 12 }}
           placeholder={intl.formatMessage({
             defaultMessage: 'Enter your MCP server definitions',
@@ -179,7 +208,7 @@ export const useRegisterToolModal = ({
   const openModal = () => {
     setError(null);
     form.reset({
-      name: '',
+      displayName: '',
       description: '',
       serverJson: '',
     });

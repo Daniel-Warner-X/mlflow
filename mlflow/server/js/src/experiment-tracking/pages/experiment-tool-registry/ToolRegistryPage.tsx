@@ -82,7 +82,28 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
   useEffect(() => {
     const loadedTools = loadToolsFromStorage();
     const loadedBindings = loadBindingsFromStorage();
-    setTools(loadedTools);
+
+    // Migrate tools from old structure (name -> internal_name)
+    const migratedTools = loadedTools.map((t: any) => {
+      if (t.name && !t.internal_name) {
+        return {
+          ...t,
+          internal_name: t.name,
+          display_name: undefined,
+          server_version: undefined,
+        };
+      }
+      return t;
+    });
+
+    // Save migrated tools if any were updated
+    if (migratedTools.some((t: any, i: number) => t !== loadedTools[i])) {
+      saveToolsToStorage(migratedTools);
+      setTools(migratedTools);
+    } else {
+      setTools(loadedTools);
+    }
+
     setBindings(loadedBindings);
   }, []);
 
@@ -116,10 +137,10 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
 
   const { RegisterToolModal, openModal: openRegisterToolModal } = useRegisterToolModal({
     experimentId,
-    onSuccess: ({ toolName, description, serverJson }) => {
+    onSuccess: ({ internalName, displayName, serverVersion, description, serverJson }) => {
       setTools((prevTools) => {
-        // Check if a tool with this name already exists
-        const existingToolIndex = prevTools.findIndex((tool) => tool.name === toolName);
+        // Check if a tool with this internal_name already exists
+        const existingToolIndex = prevTools.findIndex((tool) => tool.internal_name === internalName);
         const timestamp = Date.now();
 
         if (existingToolIndex >= 0) {
@@ -138,6 +159,8 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
 
           const updatedTool: RegisteredTool = {
             ...existingTool,
+            display_name: displayName,
+            server_version: serverVersion,
             description: description || existingTool.description,
             server_json: serverJson || existingTool.server_json,
             latest_version: newVersion,
@@ -160,7 +183,9 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
           };
 
           const newTool: RegisteredTool = {
-            name: toolName,
+            internal_name: internalName,
+            display_name: displayName,
+            server_version: serverVersion,
             description: description || undefined,
             server_json: serverJson || undefined,
             latest_version: '1',
@@ -183,7 +208,8 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
     const lowerSearch = searchFilter.toLowerCase();
     return tools.filter(
       (tool) =>
-        tool.name.toLowerCase().includes(lowerSearch) ||
+        tool.internal_name.toLowerCase().includes(lowerSearch) ||
+        (tool.display_name && tool.display_name.toLowerCase().includes(lowerSearch)) ||
         (tool.description && tool.description.toLowerCase().includes(lowerSearch)),
     );
   }, [tools, searchFilter]);
