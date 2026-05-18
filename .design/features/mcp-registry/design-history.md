@@ -6,6 +6,12 @@ This file contains a chronological record of key design updates and decisions fo
 
 ## 2026-05-18
 
+### [Decision] Internal name and display name architecture
+- Internal name extracted from server.json automatically (immutable, required)
+- Display name is optional user-friendly override (mutable)
+- Server version also extracted from server.json when present
+- Rationale: Server.json already contains required name field (e.g., io.github.anthropic/brave-search), so user doesn't need to re-enter it
+
 ### [Decision] Alias scoping behavior
 - Aliases are scoped per-server, not globally unique
 - Each MCP server can have its own "champion", "production", etc.
