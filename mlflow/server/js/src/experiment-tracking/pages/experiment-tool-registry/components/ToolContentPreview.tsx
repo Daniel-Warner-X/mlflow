@@ -129,7 +129,7 @@ export const ToolContentPreview = ({
 
         {/* Display Name (editable) */}
         <Typography.Text bold>
-          <FormattedMessage defaultMessage="Display name:" description="Label for display name" />
+          <FormattedMessage defaultMessage="Title:" description="Label for display name" />
         </Typography.Text>
         <div>
           {registeredTool?.display_name ? (
