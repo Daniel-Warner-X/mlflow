@@ -265,10 +265,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
     openEditEndpointModal(binding);
   };
 
-  const isEmptyState = !isLoading && !error && !tools?.length && !searchFilter;
-  const showCreationButtons = !isEmptyState;
-
-  const createButton = showCreationButtons && (
+  const createButton = (
     <Button
       componentId={`${componentId}.create`}
       data-testid="create-mcp-server-button"

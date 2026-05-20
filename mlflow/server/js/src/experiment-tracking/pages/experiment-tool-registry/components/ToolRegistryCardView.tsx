@@ -1,4 +1,4 @@
-import { Typography, useDesignSystemTheme, Empty, SearchIcon } from '@databricks/design-system';
+import { Typography, useDesignSystemTheme, Empty, SearchIcon, Button, PlusIcon } from '@databricks/design-system';
 import { FormattedMessage, useIntl } from 'react-intl';
 import { Link } from '../../../../common/utils/RoutingUtils';
 import Routes from '../../../routes';
@@ -78,11 +78,39 @@ export const ToolRegistryCardView = ({
         }}
       >
         <Empty
+          title={
+            <FormattedMessage
+              defaultMessage="Create MCP server"
+              description="A header for the empty state in the MCP registry card view"
+            />
+          }
           description={
             <FormattedMessage
-              defaultMessage="No MCP servers created. Get started by creating your first MCP server."
-              description="Empty state message for MCP registry"
+              defaultMessage="Create and manage MCP servers using MLflow. <link>Learn more</link>"
+              description="Guidelines for the user on how to create a new MCP server in the MCP registry page"
+              values={{
+                link: (content: any) => (
+                  <Typography.Link
+                    componentId="mlflow.tool-registry.list.card.learn_more_link"
+                    href="https://mlflow.org/docs/latest/genai/"
+                    openInNewTab
+                  >
+                    {content}
+                  </Typography.Link>
+                ),
+              }}
             />
+          }
+          button={
+            <Button
+              componentId="mlflow.tool-registry.list.card.create_mcp_server"
+              data-testid="create-mcp-server-empty-state-button"
+              onClick={onCreateTool}
+              type="primary"
+              icon={<PlusIcon />}
+            >
+              <FormattedMessage defaultMessage="Create MCP server" description="MCP registry empty state CTA" />
+            </Button>
           }
         />
       </div>
