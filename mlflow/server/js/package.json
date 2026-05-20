@@ -168,6 +168,7 @@
     "jest-localstorage-mock": "^2.3.0",
     "knip": "^6.1.0",
     "msw": "^1.2.3",
+    "playwright": "^1.59.1",
     "postcss-normalize": "^10.0.1",
     "prettier": "3.7.4",
     "react-17": "npm:react@^17.0.2",

@@ -7,13 +7,39 @@ import {
   useDesignSystemTheme,
   PlayIcon,
   Checkbox,
+  Tag,
 } from '@databricks/design-system';
 import { useState } from 'react';
-import type { RegisteredTool, ToolVersion } from '../types';
+import type { RegisteredTool, ToolVersion, MCPStatus } from '../types';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Utils from '../../../../common/utils/Utils';
 import { ShowArtifactCodeSnippet } from '../../../components/artifact-view-components/ShowArtifactCodeSnippet';
 import { DirectAccessBindingsList } from './DirectAccessBindingsList';
+import { ToolIcon } from './ToolIcon';
+
+const getStatusColor = (status: MCPStatus) => {
+  switch (status) {
+    case 'active':
+      return 'lime';
+    case 'deprecated':
+      return 'lemon';
+    case 'deleted':
+      return 'coral';
+    case 'draft':
+    default:
+      return 'charcoal';
+  }
+};
+
+const getStatusBadgeStyles = (status: MCPStatus, theme: any) => {
+  if (status === 'active') {
+    return {
+      backgroundColor: 'rgba(34, 197, 94, 0.2)', // Green with opacity
+      color: '#22c55e', // Solid green text
+    };
+  }
+  return {};
+};
 
 export const ToolContentPreview = ({
   toolVersion,
@@ -24,6 +50,7 @@ export const ToolContentPreview = ({
   onUpdateTool,
   showEditAliasesModal,
   showEditToolVersionMetadataModal,
+  showUpdateStatusModal,
   allTools,
   onEditBinding,
 }: {
@@ -35,8 +62,9 @@ export const ToolContentPreview = ({
   onUpdateTool?: (updatedTool: RegisteredTool) => void;
   showEditAliasesModal?: (versionNumber: string) => void;
   showEditToolVersionMetadataModal?: (toolName: string, toolVersion: ToolVersion) => void;
+  showUpdateStatusModal?: (version: ToolVersion) => void;
   allTools?: RegisteredTool[];
-  onEditBinding?: (binding: import('../types').DirectAccessBinding) => void;
+  onEditBinding?: (binding: import('../types').MCPAccessBinding) => void;
 }) => {
   const { theme } = useDesignSystemTheme();
   const intl = useIntl();
@@ -111,6 +139,21 @@ export const ToolContentPreview = ({
         </div>
       </div>
       <Spacer size="md" />
+
+      {/* Server Icon */}
+      <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+        <ToolIcon parsedServerJson={registeredTool?.parsed_server_json} size={48} />
+        <div>
+          <Typography.Title level={4} withoutMargins>
+            {registeredTool?.display_name || registeredTool?.internal_name}
+          </Typography.Title>
+          {registeredTool?.display_name && (
+            <Typography.Text color="secondary" size="sm" css={{ fontFamily: 'monospace' }}>
+              {registeredTool.internal_name}
+            </Typography.Text>
+          )}
+        </div>
+      </div>
 
       <div
         css={{
@@ -204,6 +247,31 @@ export const ToolContentPreview = ({
               <FormattedMessage defaultMessage="Add" description="Link to add aliases" />
             </Typography.Link>
           )}
+        </div>
+
+        {/* Status */}
+        <Typography.Text bold>
+          <FormattedMessage defaultMessage="Status:" description="Label for version status" />
+        </Typography.Text>
+        <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
+          <div
+            onClick={() => showUpdateStatusModal?.(toolVersion)}
+            css={{ cursor: 'pointer' }}
+          >
+            <Tag
+              componentId="mlflow.tool-registry.version.status"
+              color={getStatusColor(toolVersion.status || 'draft')}
+              css={getStatusBadgeStyles(toolVersion.status || 'draft', theme)}
+            >
+              {toolVersion.status || 'draft'}
+            </Tag>
+          </div>
+          <Typography.Link
+            componentId="mlflow.tool-registry.details.edit_status"
+            onClick={() => showUpdateStatusModal?.(toolVersion)}
+          >
+            <FormattedMessage defaultMessage="Edit" description="Link to edit status" />
+          </Typography.Link>
         </div>
 
         {/* Server Version (from server.json) */}
@@ -497,7 +565,7 @@ export const ToolContentPreview = ({
 };
 
 const buildMCPUsageExample = (tool: RegisteredTool | undefined, version: ToolVersion | undefined) => {
-  const serverName = tool?.name || 'my-mcp-server';
+  const serverName = tool?.internal_name || 'my-mcp-server';
   const versionNumber = version?.version || '1';
 
   // Check if this is a container-based server

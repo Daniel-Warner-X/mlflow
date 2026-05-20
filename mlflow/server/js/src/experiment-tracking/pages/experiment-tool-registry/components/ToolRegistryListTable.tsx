@@ -93,7 +93,7 @@ export const ToolRegistryListTable = ({
     data: tools ?? [],
     columns,
     getCoreRowModel: getCoreRowModel(),
-    getRowId: (row, index) => row.name ?? index.toString(),
+    getRowId: (row, index) => row.internal_name ?? index.toString(),
     meta: { experimentId } satisfies ToolsTableMetadata,
   });
 

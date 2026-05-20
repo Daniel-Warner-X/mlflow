@@ -7,14 +7,14 @@ import {
   TrashIcon,
 } from '@databricks/design-system';
 import { FormattedMessage, useIntl } from 'react-intl';
-import type { DirectAccessBinding, RegisteredTool } from '../types';
+import type { MCPAccessBinding, RegisteredTool } from '../types';
 import Utils from '../../../../common/utils/Utils';
 import { useState, useEffect } from 'react';
 import { useCreateEndpointModal } from '../hooks/useCreateEndpointModal';
 
 const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
 
-const loadBindingsFromStorage = (): DirectAccessBinding[] => {
+const loadBindingsFromStorage = (): MCPAccessBinding[] => {
   try {
     const stored = localStorage.getItem(BINDINGS_STORAGE_KEY);
     if (stored) {
@@ -26,7 +26,7 @@ const loadBindingsFromStorage = (): DirectAccessBinding[] => {
   return [];
 };
 
-const saveBindingsToStorage = (bindings: DirectAccessBinding[]) => {
+const saveBindingsToStorage = (bindings: MCPAccessBinding[]) => {
   try {
     localStorage.setItem(BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
   } catch (error) {
@@ -41,11 +41,11 @@ export const DirectAccessBindingsList = ({
 }: {
   serverName: string;
   tools: RegisteredTool[];
-  onEditBinding?: (binding: DirectAccessBinding) => void;
+  onEditBinding?: (binding: MCPAccessBinding) => void;
 }) => {
   const { theme } = useDesignSystemTheme();
   const intl = useIntl();
-  const [bindings, setBindings] = useState<DirectAccessBinding[]>([]);
+  const [bindings, setBindings] = useState<MCPAccessBinding[]>([]);
 
   const { CreateEndpointModal, openModal: openCreateEndpointModal } = useCreateEndpointModal({
     tools,
@@ -66,7 +66,7 @@ export const DirectAccessBindingsList = ({
 
   const handleDelete = (bindingId: string) => {
     const allBindings = loadBindingsFromStorage();
-    const updatedBindings = allBindings.filter((b) => b.id !== bindingId);
+    const updatedBindings = allBindings.filter((b) => b.binding_id !== bindingId);
     saveBindingsToStorage(updatedBindings);
     setBindings(updatedBindings.filter((b) => b.server_name === serverName));
   };
@@ -76,32 +76,32 @@ export const DirectAccessBindingsList = ({
       <div css={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: theme.spacing.sm }}>
         <div css={{ fontWeight: 600 }}>
           <FormattedMessage
-            defaultMessage="Endpoints"
-            description="Label for endpoints section"
+            defaultMessage="Access Bindings"
+            description="Label for access bindings section"
           />
         </div>
         <Button
-          componentId="mlflow.tool-registry.details.add_endpoint"
+          componentId="mlflow.tool-registry.details.add_access_binding"
           icon={<PlusIcon />}
           size="small"
           onClick={openCreateEndpointModal}
         >
-          <FormattedMessage defaultMessage="Add endpoint" description="Button to add a new endpoint" />
+          <FormattedMessage defaultMessage="Add access binding" description="Button to add a new access binding" />
         </Button>
       </div>
 
       {bindings.length === 0 ? (
         <div css={{ padding: theme.spacing.md, textAlign: 'center', color: theme.colors.textSecondary }}>
           <FormattedMessage
-            defaultMessage="No endpoints configured for this server."
-            description="Message when no endpoints exist"
+            defaultMessage="No access bindings configured for this server."
+            description="Message when no access bindings exist"
           />
         </div>
       ) : (
         <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.sm }}>
           {bindings.map((binding) => (
             <div
-              key={binding.id}
+              key={binding.binding_id}
               css={{
                 padding: theme.spacing.sm,
                 border: `1px solid ${theme.colors.border}`,
@@ -114,34 +114,28 @@ export const DirectAccessBindingsList = ({
               <div css={{ flex: 1 }}>
                 <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
                   <span css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm, fontWeight: 600 }}>
-                    {binding.endpoint}
+                    {binding.endpoint_url}
                   </span>
                   <Tag
-                    componentId="mlflow.tool-registry.binding-status-tag"
-                    color={
-                      binding.status === 'active' || binding.status === 'health-check' ? 'teal' : 'lemon'
-                    }
+                    componentId="mlflow.tool-registry.binding-transport-tag"
+                    color="turquoise"
                   >
-                    {binding.status === 'active' || binding.status === 'health-check' ? 'Active' : 'Deprecated'}
+                    {binding.transport_type}
                   </Tag>
                 </div>
                 <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, fontSize: theme.typography.fontSizeSm }}>
                   <div css={{ display: 'flex', gap: theme.spacing.md }}>
                     <span>
                       <strong>
-                        <FormattedMessage defaultMessage="Version:" description="Label for binding version" />
+                        <FormattedMessage defaultMessage="Target:" description="Label for binding target" />
                       </strong>{' '}
-                      {binding.alias ? `@ ${binding.alias}` : binding.version ? `v${binding.version}` : 'Latest'}
+                      {binding.server_alias ? `@ ${binding.server_alias}` : binding.server_version ? `v${binding.server_version}` : '-'}
                     </span>
                     <span>
                       <strong>
-                        <FormattedMessage defaultMessage="Credential:" description="Label for binding credential" />
+                        <FormattedMessage defaultMessage="Workspace:" description="Label for workspace" />
                       </strong>{' '}
-                      {binding.credential_ref ? (
-                        <span css={{ color: '#28a745' }}>✓ {binding.credential_ref}</span>
-                      ) : (
-                        <span css={{ opacity: 0.6 }}>None</span>
-                      )}
+                      {binding.workspace}
                     </span>
                     <span>
                       <strong>
@@ -150,28 +144,6 @@ export const DirectAccessBindingsList = ({
                       {Utils.formatTimestamp(binding.last_updated_timestamp, intl)}
                     </span>
                   </div>
-                  {binding.status === 'health-check' && binding.health_check && (
-                    <div css={{ display: 'flex', gap: theme.spacing.md }}>
-                      <span>
-                        <strong>
-                          <FormattedMessage defaultMessage="Interval:" description="Label for health check interval" />
-                        </strong>{' '}
-                        {binding.health_check.interval_seconds}s
-                      </span>
-                      <span>
-                        <strong>
-                          <FormattedMessage defaultMessage="Timeout:" description="Label for health check timeout" />
-                        </strong>{' '}
-                        {binding.health_check.timeout_seconds}s
-                      </span>
-                      <span>
-                        <strong>
-                          <FormattedMessage defaultMessage="Path:" description="Label for health check path" />
-                        </strong>{' '}
-                        <span css={{ fontFamily: 'monospace' }}>{binding.health_check.endpoint_path}</span>
-                      </span>
-                    </div>
-                  )}
                 </div>
               </div>
               <div css={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
@@ -179,14 +151,14 @@ export const DirectAccessBindingsList = ({
                   componentId="mlflow.tool-registry.details.edit_binding"
                   onClick={() => onEditBinding?.(binding)}
                 >
-                  <FormattedMessage defaultMessage="Edit" description="Edit link for endpoint" />
+                  <FormattedMessage defaultMessage="Edit" description="Edit link for access binding" />
                 </Typography.Link>
                 <Button
                   componentId="mlflow.tool-registry.details.delete_binding"
                   icon={<TrashIcon />}
                   size="small"
                   danger
-                  onClick={() => handleDelete(binding.id)}
+                  onClick={() => handleDelete(binding.binding_id)}
                 />
               </div>
             </div>

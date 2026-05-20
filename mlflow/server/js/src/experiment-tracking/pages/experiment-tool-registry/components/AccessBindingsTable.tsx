@@ -13,20 +13,23 @@ import {
   PlusIcon,
   Tag,
   Typography,
+  CopyIcon,
+  Tooltip,
 } from '@databricks/design-system';
 import type { ColumnDef } from '@tanstack/react-table';
 import { flexRender, getCoreRowModel } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
-import type { DirectAccessBinding } from '../types';
+import type { MCPAccessBinding } from '../types';
 import Utils from '../../../../common/utils/Utils';
 import { Link } from '../../../../common/utils/RoutingUtils';
 import Routes from '../../../routes';
 
-type AccessBindingsColumnDef = ColumnDef<DirectAccessBinding>;
+type AccessBindingsColumnDef = ColumnDef<MCPAccessBinding>;
 
-const useAccessBindingsTableColumns = (onEditBinding?: (binding: DirectAccessBinding) => void) => {
+const useAccessBindingsTableColumns = (onEditBinding?: (binding: MCPAccessBinding) => void) => {
   const intl = useIntl();
+  const { theme } = useDesignSystemTheme();
   return useMemo(() => {
     const resultColumns: AccessBindingsColumnDef[] = [
       {
@@ -34,11 +37,40 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: DirectAccessBin
           defaultMessage: 'Endpoint',
           description: 'Header for the endpoint column in the access bindings table',
         }),
-        accessorKey: 'endpoint',
+        accessorKey: 'endpoint_url',
         id: 'endpoint',
-        cell: ({ getValue }) => (
-          <span css={{ fontFamily: 'monospace', fontSize: '0.9em' }}>{getValue() as string}</span>
-        ),
+        cell: ({ getValue }) => {
+          const endpointUrl = getValue() as string;
+          return (
+            <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
+              <Tooltip content="Copy endpoint URL">
+                <div
+                  css={{
+                    cursor: 'pointer',
+                    padding: theme.spacing.xs,
+                    borderRadius: theme.borders.borderRadiusSm,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'background 150ms ease',
+                    color: theme.colors.textSecondary,
+                    '&:hover': {
+                      background: theme.colors.actionDefaultBackgroundPress,
+                      color: theme.colors.textPrimary,
+                    },
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(endpointUrl);
+                  }}
+                >
+                  <CopyIcon />
+                </div>
+              </Tooltip>
+              <span css={{ fontFamily: 'monospace', fontSize: '0.9em', flex: 1 }}>{endpointUrl}</span>
+            </div>
+          );
+        },
       },
       {
         header: intl.formatMessage({
@@ -67,55 +99,26 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: DirectAccessBin
         id: 'version_alias',
         cell: ({ row }) => {
           const binding = row.original;
-          if (binding.alias) {
-            return <span>@ {binding.alias}</span>;
+          if (binding.server_alias) {
+            return <span>@ {binding.server_alias}</span>;
           }
-          if (binding.version) {
-            return <span>v{binding.version}</span>;
+          if (binding.server_version) {
+            return <span>v{binding.server_version}</span>;
           }
           return <span css={{ fontStyle: 'italic', opacity: 0.6 }}>Latest</span>;
         },
       },
       {
         header: intl.formatMessage({
-          defaultMessage: 'Credential',
-          description: 'Header for the credential column in the access bindings table',
+          defaultMessage: 'Transport',
+          description: 'Header for the transport column in the access bindings table',
         }),
-        accessorKey: 'credential_ref',
-        id: 'credential',
+        accessorKey: 'transport_type',
+        id: 'transport',
         cell: ({ getValue }) => {
-          const credentialRef = getValue() as string | undefined;
-          return credentialRef ? (
-            <span css={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span css={{ color: '#28a745' }}>✓</span> Authenticated
-            </span>
-          ) : (
-            <span css={{ opacity: 0.6 }}>None</span>
-          );
-        },
-      },
-      {
-        header: intl.formatMessage({
-          defaultMessage: 'Status',
-          description: 'Header for the status column in the access bindings table',
-        }),
-        accessorKey: 'status',
-        id: 'status',
-        cell: ({ getValue }) => {
-          const status = getValue() as 'active' | 'deprecated' | 'health-check';
-          const getTagColor = () => {
-            if (status === 'active' || status === 'health-check') return 'teal';
-            return 'lemon'; // deprecated
-          };
-          const getStatusLabel = () => {
-            if (status === 'active' || status === 'health-check') return 'Active';
-            return 'Deprecated';
-          };
-          return (
-            <Tag componentId="mlflow.access-bindings.status-tag" color={getTagColor()}>
-              {getStatusLabel()}
-            </Tag>
-          );
+          const transport = getValue() as 'streamable-http' | 'sse';
+          const label = transport === 'streamable-http' ? 'Streamable HTTP' : 'SSE';
+          return <span>{label}</span>;
         },
       },
       {
@@ -142,7 +145,7 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: DirectAccessBin
     ];
 
     return resultColumns;
-  }, [intl, onEditBinding]);
+  }, [intl, onEditBinding, theme]);
 };
 
 export const AccessBindingsTable = ({
@@ -157,7 +160,7 @@ export const AccessBindingsTable = ({
   onEditBinding,
   componentId,
 }: {
-  bindings?: DirectAccessBinding[];
+  bindings?: MCPAccessBinding[];
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   isLoading?: boolean;
@@ -165,7 +168,7 @@ export const AccessBindingsTable = ({
   onNextPage: () => void;
   onPreviousPage: () => void;
   onCreateBinding: () => void;
-  onEditBinding?: (binding: DirectAccessBinding) => void;
+  onEditBinding?: (binding: MCPAccessBinding) => void;
   componentId: string;
 }) => {
   const { theme } = useDesignSystemTheme();
@@ -177,7 +180,7 @@ export const AccessBindingsTable = ({
       data: bindings ?? [],
       columns,
       getCoreRowModel: getCoreRowModel(),
-      getRowId: (row) => row.id,
+      getRowId: (row) => row.binding_id,
     },
   );
 

@@ -24,6 +24,7 @@ import { useEditAliasesModal } from '../../../common/hooks/useEditAliasesModal';
 import { useUpdateToolVersionMetadataModal } from './hooks/useUpdateToolVersionMetadataModal';
 import { DirectAccessBindingsList } from './components/DirectAccessBindingsList';
 import { useEditEndpointModal } from './hooks/useEditEndpointModal';
+import { useUpdateVersionStatusModal } from './hooks/useUpdateVersionStatusModal';
 
 const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
 
@@ -91,12 +92,34 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
     setAllTools(migratedTools);
     let foundTool = migratedTools.find((t) => t.internal_name === decodedToolName);
 
+    // Migrate versions without status field
+    if (foundTool?.versions) {
+      const hasVersionsWithoutStatus = foundTool.versions.some((v: any) => !v.status);
+      if (hasVersionsWithoutStatus) {
+        foundTool = {
+          ...foundTool,
+          versions: foundTool.versions.map((v: any) => ({
+            ...v,
+            status: v.status || 'draft',
+          })),
+        };
+
+        // Save the migrated tool back to localStorage
+        const toolIndex = migratedTools.findIndex((t) => t.internal_name === decodedToolName);
+        if (toolIndex >= 0) {
+          migratedTools[toolIndex] = foundTool;
+          saveToolsToStorage(migratedTools);
+        }
+      }
+    }
+
     // Migrate old tools without versions array
     if (foundTool && (!foundTool.versions || foundTool.versions.length === 0)) {
       const migratedVersion: ToolVersion = {
         version: foundTool.latest_version || '1',
         description: foundTool.description,
         server_json: foundTool.server_json,
+        status: 'draft',
         creation_timestamp: foundTool.last_updated_timestamp || Date.now(),
         last_updated_timestamp: foundTool.last_updated_timestamp || Date.now(),
       };
@@ -157,6 +180,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
         const newToolVersion: ToolVersion = {
           version: newVersion,
           server_json: serverJson || undefined,
+          status: 'draft',
           creation_timestamp: timestamp,
           last_updated_timestamp: timestamp,
         };
@@ -322,6 +346,34 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
     },
   });
 
+  const { UpdateVersionStatusModal, openUpdateVersionStatusModal } = useUpdateVersionStatusModal({
+    onSuccess: ({ toolName, version, newStatus }) => {
+      const tools = loadToolsFromStorage();
+      const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
+
+      if (toolIndex >= 0) {
+        const updatedVersions = (tool?.versions || []).map((v) => {
+          if (v.version === version) {
+            return {
+              ...v,
+              status: newStatus,
+            };
+          }
+          return v;
+        });
+
+        const updatedTool: RegisteredTool = {
+          ...(tool || tools[toolIndex]),
+          versions: updatedVersions,
+        };
+
+        tools[toolIndex] = updatedTool;
+        saveToolsToStorage(tools);
+        setTool(updatedTool);
+      }
+    },
+  });
+
   const breadcrumbs = !experimentId ? (
     <Breadcrumb>
       <Breadcrumb.Item>
@@ -425,6 +477,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
                 onUpdateTool={handleUpdateTool}
                 showEditAliasesModal={showEditAliasesModal}
                 showEditToolVersionMetadataModal={showEditToolVersionMetadataModal}
+                showUpdateStatusModal={(version) => openUpdateVersionStatusModal(decodedToolName, version)}
                 allTools={allTools}
                 onEditBinding={openEditEndpointModal}
               />
@@ -437,6 +490,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
       {EditToolVersionMetadataModal}
       {RegisterToolModal}
       {EditEndpointModal}
+      {UpdateVersionStatusModal}
     </ScrollablePageWrapper>
   );
 };

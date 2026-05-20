@@ -7,16 +7,20 @@ import {
   useDesignSystemTheme,
   SegmentedControlGroup,
   SegmentedControlButton,
+  GridIcon,
+  ListIcon,
 } from '@databricks/design-system';
 import { FormattedMessage } from 'react-intl';
 import { ScrollablePageWrapper } from '@mlflow/mlflow/src/common/components/ScrollablePageWrapper';
 import { ToolRegistryListFilters } from './components/ToolRegistryListFilters';
 import { ToolRegistryListTable } from './components/ToolRegistryListTable';
+import { ToolRegistryCardView } from './components/ToolRegistryCardView';
 import { AccessBindingsTable } from './components/AccessBindingsTable';
+import { AccessBindingsCardView } from './components/AccessBindingsCardView';
 import { useRegisterToolModal } from './hooks/useRegisterToolModal';
 import { useCreateEndpointModal } from './hooks/useCreateEndpointModal';
 import { useEditEndpointModal } from './hooks/useEditEndpointModal';
-import type { RegisteredTool, ToolVersion, DirectAccessBinding } from './types';
+import type { RegisteredTool, ToolVersion, MCPAccessBinding } from './types';
 
 const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
 const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
@@ -44,7 +48,7 @@ const saveToolsToStorage = (tools: RegisteredTool[]) => {
 };
 
 // Helper to load bindings from localStorage
-const loadBindingsFromStorage = (): DirectAccessBinding[] => {
+const loadBindingsFromStorage = (): MCPAccessBinding[] => {
   try {
     const stored = localStorage.getItem(BINDINGS_STORAGE_KEY);
     if (stored) {
@@ -57,7 +61,7 @@ const loadBindingsFromStorage = (): DirectAccessBinding[] => {
 };
 
 // Helper to save bindings to localStorage
-const saveBindingsToStorage = (bindings: DirectAccessBinding[]) => {
+const saveBindingsToStorage = (bindings: MCPAccessBinding[]) => {
   try {
     localStorage.setItem(BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
   } catch (error) {
@@ -65,17 +69,23 @@ const saveBindingsToStorage = (bindings: DirectAccessBinding[]) => {
   }
 };
 
-enum ViewMode {
-  REGISTRY = 'registry',
-  ACCESS_BINDINGS = 'access-bindings',
+enum TabMode {
+  SERVERS = 'servers',
+  ACCESS_BINDINGS = 'access_bindings',
+}
+
+enum ServerViewMode {
+  TABLE = 'table',
+  CARDS = 'cards',
 }
 
 const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
   const { theme } = useDesignSystemTheme();
   const [searchFilter, setSearchFilter] = useState('');
   const [tools, setTools] = useState<RegisteredTool[]>([]);
-  const [bindings, setBindings] = useState<DirectAccessBinding[]>([]);
-  const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.REGISTRY);
+  const [bindings, setBindings] = useState<MCPAccessBinding[]>([]);
+  const [tabMode, setTabMode] = useState<TabMode>(TabMode.SERVERS);
+  const [serverViewMode, setServerViewMode] = useState<ServerViewMode>(ServerViewMode.CARDS);
   const componentId = experimentId ? 'mlflow.tool-registry.experiment.list' : 'mlflow.tool-registry.global.list';
 
   // Load tools and bindings from localStorage on mount
@@ -104,6 +114,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
       setTools(loadedTools);
     }
 
+    setTools(loadedTools);
     setBindings(loadedBindings);
   }, []);
 
@@ -152,6 +163,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
           const newToolVersion: ToolVersion = {
             version: newVersion,
             server_json: serverJson || undefined,
+            status: 'draft',
             creation_timestamp: timestamp,
             last_updated_timestamp: timestamp,
           };
@@ -176,6 +188,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
           const initialVersion: ToolVersion = {
             version: '1',
             server_json: serverJson || undefined,
+            status: 'draft',
             creation_timestamp: timestamp,
             last_updated_timestamp: timestamp,
           };
@@ -220,9 +233,9 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
     const lowerSearch = searchFilter.toLowerCase();
     return bindings.filter(
       (binding) =>
-        binding.endpoint.toLowerCase().includes(lowerSearch) ||
+        binding.endpoint_url.toLowerCase().includes(lowerSearch) ||
         binding.server_name.toLowerCase().includes(lowerSearch) ||
-        (binding.alias && binding.alias.toLowerCase().includes(lowerSearch)),
+        (binding.server_alias && binding.server_alias.toLowerCase().includes(lowerSearch)),
     );
   }, [bindings, searchFilter]);
 
@@ -248,7 +261,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
     openCreateEndpointModal();
   };
 
-  const handleEditBinding = (binding: DirectAccessBinding) => {
+  const handleEditBinding = (binding: MCPAccessBinding) => {
     openEditEndpointModal(binding);
   };
 
@@ -300,19 +313,16 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
       <div css={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div css={{ display: 'flex', alignItems: 'flex-start', gap: theme.spacing.sm, marginBottom: theme.spacing.md }}>
           <SegmentedControlGroup
-            name="mcp-registry-view-mode"
-            componentId={`${componentId}.view_mode`}
-            value={viewMode}
-            onChange={(e) => setViewMode(e.target.value as ViewMode)}
+            name="mcp-registry-tab-mode"
+            componentId={`${componentId}.tab_mode`}
+            value={tabMode}
+            onChange={(e) => setTabMode(e.target.value as TabMode)}
           >
-            <SegmentedControlButton value={ViewMode.REGISTRY}>
-              <FormattedMessage defaultMessage="Registry" description="Tab label for MCP server registry view" />
+            <SegmentedControlButton value={TabMode.SERVERS}>
+              <FormattedMessage defaultMessage="Servers" description="Tab label for MCP servers view" />
             </SegmentedControlButton>
-            <SegmentedControlButton value={ViewMode.ACCESS_BINDINGS}>
-              <FormattedMessage
-                defaultMessage="Endpoints"
-                description="Tab label for MCP server endpoints view"
-              />
+            <SegmentedControlButton value={TabMode.ACCESS_BINDINGS}>
+              <FormattedMessage defaultMessage="Access Bindings" description="Tab label for MCP access bindings view" />
             </SegmentedControlButton>
           </SegmentedControlGroup>
         </div>
@@ -324,24 +334,48 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
               componentId={`${componentId}.search`}
             />
           </div>
+          <SegmentedControlGroup
+            name="mcp-registry-view-mode"
+            componentId={`${componentId}.view_mode`}
+            value={serverViewMode}
+            onChange={(e) => setServerViewMode(e.target.value as ServerViewMode)}
+          >
+            <SegmentedControlButton value={ServerViewMode.TABLE}>
+              <ListIcon />
+            </SegmentedControlButton>
+            <SegmentedControlButton value={ServerViewMode.CARDS}>
+              <GridIcon />
+            </SegmentedControlButton>
+          </SegmentedControlGroup>
           {experimentId && createButton}
         </div>
         <Spacer />
-        {viewMode === ViewMode.REGISTRY ? (
-          <ToolRegistryListTable
-            tools={filteredTools}
-            error={error}
-            hasNextPage={hasNextPage}
-            hasPreviousPage={hasPreviousPage}
-            isLoading={isLoading}
-            isFiltered={Boolean(searchFilter)}
-            onNextPage={handleNextPage}
-            onPreviousPage={handlePreviousPage}
-            experimentId={experimentId}
-            onCreateTool={openRegisterToolModal}
-            componentId={componentId}
-          />
-        ) : (
+        {tabMode === TabMode.SERVERS ? (
+          serverViewMode === ServerViewMode.TABLE ? (
+            <ToolRegistryListTable
+              tools={filteredTools}
+              error={error}
+              hasNextPage={hasNextPage}
+              hasPreviousPage={hasPreviousPage}
+              isLoading={isLoading}
+              isFiltered={Boolean(searchFilter)}
+              onNextPage={handleNextPage}
+              onPreviousPage={handlePreviousPage}
+              experimentId={experimentId}
+              onCreateTool={openRegisterToolModal}
+              componentId={componentId}
+            />
+          ) : (
+            <ToolRegistryCardView
+              tools={filteredTools}
+              isLoading={isLoading}
+              isFiltered={Boolean(searchFilter)}
+              experimentId={experimentId}
+              onCreateTool={openRegisterToolModal}
+              componentId={componentId}
+            />
+          )
+        ) : serverViewMode === ServerViewMode.TABLE ? (
           <AccessBindingsTable
             bindings={filteredBindings}
             hasNextPage={hasNextPage}
@@ -352,7 +386,16 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             onPreviousPage={handlePreviousPage}
             onCreateBinding={handleCreateBinding}
             onEditBinding={handleEditBinding}
-            componentId={`${componentId}.bindings`}
+            componentId={componentId}
+          />
+        ) : (
+          <AccessBindingsCardView
+            bindings={filteredBindings}
+            tools={tools}
+            isLoading={isLoading}
+            isFiltered={Boolean(searchFilter)}
+            onEditBinding={handleEditBinding}
+            componentId={componentId}
           />
         )}
       </div>

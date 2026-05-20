@@ -8,11 +8,11 @@ import {
 import { useState, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
-import type { DirectAccessBinding, RegisteredTool } from '../types';
+import type { MCPAccessBinding, RegisteredTool } from '../types';
 
 const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
 
-const loadBindingsFromStorage = (): DirectAccessBinding[] => {
+const loadBindingsFromStorage = (): MCPAccessBinding[] => {
   try {
     const stored = localStorage.getItem(BINDINGS_STORAGE_KEY);
     if (stored) {
@@ -24,7 +24,7 @@ const loadBindingsFromStorage = (): DirectAccessBinding[] => {
   return [];
 };
 
-const saveBindingsToStorage = (bindings: DirectAccessBinding[]) => {
+const saveBindingsToStorage = (bindings: MCPAccessBinding[]) => {
   try {
     localStorage.setItem(BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
   } catch (error) {
@@ -45,24 +45,16 @@ export const useCreateEndpointModal = ({
   const intl = useIntl();
 
   const form = useForm<{
-    endpoint: string;
+    endpoint_url: string;
     server_name: string;
     version_or_alias: string;
-    credential_ref: string;
-    status: 'active' | 'deprecated' | 'health-check';
-    health_check_interval: string;
-    health_check_timeout: string;
-    health_check_path: string;
+    transport_type: 'streamable-http' | 'sse';
   }>({
     defaultValues: {
-      endpoint: '',
+      endpoint_url: '',
       server_name: preselectedServer || '',
       version_or_alias: '',
-      credential_ref: '',
-      status: 'active',
-      health_check_interval: '60',
-      health_check_timeout: '5',
-      health_check_path: '/health',
+      transport_type: 'streamable-http',
     },
   });
 
@@ -71,88 +63,81 @@ export const useCreateEndpointModal = ({
 
   // Get selected server's versions and aliases
   const selectedServerName = form.watch('server_name');
-  const selectedStatus = form.watch('status');
   const selectedServer = useMemo(
-    () => tools.find((t) => t.name === selectedServerName),
+    () => tools.find((t) => t.internal_name === selectedServerName),
     [tools, selectedServerName],
   );
 
   const versionAliasOptions = useMemo(() => {
     if (!selectedServer) return [];
+    const options: Array<{ value: string; label: string }> = [];
 
-    const options: { value: string; label: string }[] = [
-      { value: '', label: 'Latest (no specific version)' },
-    ];
-
-    // Add aliases
-    if (selectedServer.aliases && selectedServer.aliases.length > 0) {
-      const aliasOptions = selectedServer.aliases.map((a) => ({
-        value: `alias:${a.alias}`,
-        label: `@ ${a.alias} (alias)`,
-      }));
-      options.push(...aliasOptions);
+    // Add versions (only active and deprecated per RFC 0004 - draft/deleted are not surfaced)
+    if (selectedServer.versions) {
+      selectedServer.versions.forEach((v) => {
+        const status = v.status || 'draft';
+        if (status === 'active' || status === 'deprecated') {
+          const label = status === 'deprecated'
+            ? `v${v.version} (deprecated)`
+            : `v${v.version}`;
+          options.push({
+            value: `version:${v.version}`,
+            label,
+          });
+        }
+      });
     }
 
-    // Add versions
-    if (selectedServer.versions && selectedServer.versions.length > 0) {
-      const versionOptions = selectedServer.versions.map((v) => ({
-        value: `version:${v.version}`,
-        label: `v${v.version}`,
-      }));
-      options.push(...versionOptions);
+    // Add aliases
+    if (selectedServer.aliases) {
+      selectedServer.aliases.forEach((a) => {
+        options.push({
+          value: `alias:${a.alias}`,
+          label: `@ ${a.alias}`,
+        });
+      });
     }
 
     return options;
   }, [selectedServer]);
 
   const handleSubmit = async (values: {
-    endpoint: string;
+    endpoint_url: string;
     server_name: string;
     version_or_alias: string;
-    credential_ref: string;
-    status: 'active' | 'deprecated' | 'health-check';
-    health_check_interval: string;
-    health_check_timeout: string;
-    health_check_path: string;
+    transport_type: 'streamable-http' | 'sse';
   }) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Parse version_or_alias
-      let version: string | undefined;
-      let alias: string | undefined;
+      // Parse version_or_alias to determine type
+      let server_version: string | undefined;
+      let server_alias: string | undefined;
 
       if (values.version_or_alias) {
-        const [type, value] = values.version_or_alias.split(':');
-        if (type === 'version') {
-          version = value;
-        } else if (type === 'alias') {
-          alias = value;
+        if (values.version_or_alias.startsWith('version:')) {
+          server_version = values.version_or_alias.substring('version:'.length);
+        } else if (values.version_or_alias.startsWith('alias:')) {
+          server_alias = values.version_or_alias.substring('alias:'.length);
         }
       }
 
-      // Create new binding
-      const newBinding: DirectAccessBinding = {
-        id: `binding-${Date.now()}`,
-        endpoint: values.endpoint,
+      // Create new binding - ensure mutually exclusive version/alias constraint
+      // TODO: In production, workspace should come from global workspace context (mlflow.get_workspace())
+      const newBinding: MCPAccessBinding = {
+        binding_id: `binding-${Date.now()}`,
         server_name: values.server_name,
-        version,
-        alias,
-        credential_ref: values.credential_ref || undefined,
-        status: values.status,
-        created_timestamp: Date.now(),
+        endpoint_url: values.endpoint_url,
+        transport_type: values.transport_type,
+        server_version,
+        server_alias,
+        workspace: 'default', // Hardcoded for prototype - would come from workspace context in production
+        created_by: 'current_user', // TODO: Get from auth context
+        last_updated_by: 'current_user', // TODO: Get from auth context
+        creation_timestamp: Date.now(),
         last_updated_timestamp: Date.now(),
       };
-
-      // Add health check configuration if status is 'health-check'
-      if (values.status === 'health-check') {
-        newBinding.health_check = {
-          interval_seconds: parseInt(values.health_check_interval, 10),
-          timeout_seconds: parseInt(values.health_check_timeout, 10),
-          endpoint_path: values.health_check_path,
-        };
-      }
 
       // Save to localStorage
       const existingBindings = loadBindingsFromStorage();
@@ -186,14 +171,14 @@ export const useCreateEndpointModal = ({
         onCancel={() => setOpen(false)}
         title={
           <FormattedMessage
-            defaultMessage="Create endpoint"
-            description="A header for the create endpoint modal"
+            defaultMessage="Create access binding"
+            description="A header for the create access binding modal"
           />
         }
         okText={
           <FormattedMessage
             defaultMessage="Create"
-            description="A label for the confirm button in the create endpoint modal"
+            description="A label for the confirm button in the create access binding modal"
           />
         }
         okButtonProps={{ loading: isLoading }}
@@ -208,53 +193,18 @@ export const useCreateEndpointModal = ({
       >
         {error?.message && (
           <>
-            <Alert componentId="mlflow.endpoint.create.error" closable={false} message={error.message} type="error" />
+            <Alert componentId="mlflow.access-binding.create.error" closable={false} message={error.message} type="error" />
             <Spacer />
           </>
         )}
 
-        <FormUI.Label htmlFor="mlflow.endpoint.create.endpoint">
-          <FormattedMessage defaultMessage="Endpoint URL:" description="Label for endpoint URL field" />
-        </FormUI.Label>
-        <RHFControlledComponents.Input
-          control={form.control}
-          id="mlflow.endpoint.create.endpoint"
-          componentId="mlflow.endpoint.create.endpoint"
-          name="endpoint"
-          rules={{
-            required: {
-              value: true,
-              message: intl.formatMessage({
-                defaultMessage: 'Endpoint URL is required',
-                description: 'Validation error for endpoint URL',
-              }),
-            },
-            pattern: {
-              value: /^https?:\/\/.+/,
-              message: intl.formatMessage({
-                defaultMessage: 'Must be a valid URL starting with http:// or https://',
-                description: 'Validation error for endpoint URL format',
-              }),
-            },
-          }}
-          placeholder={intl.formatMessage({
-            defaultMessage: 'https://mcp.example.com/server-name',
-            description: 'Placeholder for endpoint URL',
-          })}
-          validationState={form.formState.errors.endpoint ? 'error' : undefined}
-        />
-        {form.formState.errors.endpoint && (
-          <FormUI.Message type="error" message={form.formState.errors.endpoint.message} />
-        )}
-        <Spacer />
-
-        <FormUI.Label htmlFor="mlflow.endpoint.create.server">
+        <FormUI.Label htmlFor="mlflow.access-binding.create.server">
           <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
         </FormUI.Label>
         <RHFControlledComponents.Select
           control={form.control}
-          id="mlflow.endpoint.create.server"
-          componentId="mlflow.endpoint.create.server"
+          id="mlflow.access-binding.create.server"
+          componentId="mlflow.access-binding.create.server"
           name="server_name"
           options={serverOptions}
           rules={{
@@ -277,13 +227,48 @@ export const useCreateEndpointModal = ({
         )}
         <Spacer />
 
-        <FormUI.Label htmlFor="mlflow.endpoint.create.version">
+        <FormUI.Label htmlFor="mlflow.access-binding.create.endpoint_url">
+          <FormattedMessage defaultMessage="Endpoint URL:" description="Label for endpoint URL field" />
+        </FormUI.Label>
+        <RHFControlledComponents.Input
+          control={form.control}
+          id="mlflow.access-binding.create.endpoint_url"
+          componentId="mlflow.access-binding.create.endpoint_url"
+          name="endpoint_url"
+          rules={{
+            required: {
+              value: true,
+              message: intl.formatMessage({
+                defaultMessage: 'Endpoint URL is required',
+                description: 'Validation error for endpoint URL',
+              }),
+            },
+            pattern: {
+              value: /^https?:\/\/.+/,
+              message: intl.formatMessage({
+                defaultMessage: 'Must be a valid URL starting with http:// or https://',
+                description: 'Validation error for endpoint URL format',
+              }),
+            },
+          }}
+          placeholder={intl.formatMessage({
+            defaultMessage: 'https://mcp.example.com/server-name',
+            description: 'Placeholder for endpoint URL',
+          })}
+          validationState={form.formState.errors.endpoint_url ? 'error' : undefined}
+        />
+        {form.formState.errors.endpoint_url && (
+          <FormUI.Message type="error" message={form.formState.errors.endpoint_url.message} />
+        )}
+        <Spacer />
+
+        <FormUI.Label htmlFor="mlflow.access-binding.create.version_or_alias">
           <FormattedMessage defaultMessage="Version/Alias (optional):" description="Label for version/alias selection" />
         </FormUI.Label>
         <RHFControlledComponents.Select
           control={form.control}
-          id="mlflow.endpoint.create.version"
-          componentId="mlflow.endpoint.create.version"
+          id="mlflow.access-binding.create.version_or_alias"
+          componentId="mlflow.access-binding.create.version_or_alias"
           name="version_or_alias"
           options={versionAliasOptions}
           placeholder={intl.formatMessage({
@@ -293,158 +278,19 @@ export const useCreateEndpointModal = ({
         />
         <Spacer />
 
-        <FormUI.Label htmlFor="mlflow.endpoint.create.credential">
-          <FormattedMessage defaultMessage="Credential reference (optional):" description="Label for credential reference" />
-        </FormUI.Label>
-        <RHFControlledComponents.Input
-          control={form.control}
-          id="mlflow.endpoint.create.credential"
-          componentId="mlflow.endpoint.create.credential"
-          name="credential_ref"
-          placeholder={intl.formatMessage({
-            defaultMessage: 'workspace-secret-name',
-            description: 'Placeholder for credential reference',
-          })}
-        />
-        <FormUI.Hint>
-          <FormattedMessage
-            defaultMessage="Reference to a workspace-managed credential for authenticating to this endpoint."
-            description="Hint for credential reference field"
-          />
-        </FormUI.Hint>
-        <Spacer />
-
-        <FormUI.Label htmlFor="mlflow.endpoint.create.status">
-          <FormattedMessage defaultMessage="Status:" description="Label for status selection" />
+        <FormUI.Label htmlFor="mlflow.access-binding.create.transport_type">
+          <FormattedMessage defaultMessage="Transport Type:" description="Label for transport type selection" />
         </FormUI.Label>
         <RHFControlledComponents.Select
           control={form.control}
-          id="mlflow.endpoint.create.status"
-          componentId="mlflow.endpoint.create.status"
-          name="status"
+          id="mlflow.access-binding.create.transport_type"
+          componentId="mlflow.access-binding.create.transport_type"
+          name="transport_type"
           options={[
-            { value: 'active', label: 'Active' },
-            { value: 'deprecated', label: 'Deprecated' },
-            { value: 'health-check', label: 'Health Check' },
+            { value: 'streamable-http', label: 'Streamable HTTP' },
+            { value: 'sse', label: 'Server-Sent Events (SSE)' },
           ]}
         />
-
-        {selectedStatus === 'health-check' && (
-          <>
-            <Spacer />
-            <FormUI.Label htmlFor="mlflow.endpoint.create.health_check_interval">
-              <FormattedMessage defaultMessage="Health check interval (seconds):" description="Label for health check interval" />
-            </FormUI.Label>
-            <RHFControlledComponents.Input
-              control={form.control}
-              id="mlflow.endpoint.create.health_check_interval"
-              componentId="mlflow.endpoint.create.health_check_interval"
-              name="health_check_interval"
-              type="number"
-              rules={{
-                required: {
-                  value: selectedStatus === 'health-check',
-                  message: intl.formatMessage({
-                    defaultMessage: 'Health check interval is required',
-                    description: 'Validation error for health check interval',
-                  }),
-                },
-                min: {
-                  value: 1,
-                  message: intl.formatMessage({
-                    defaultMessage: 'Interval must be at least 1 second',
-                    description: 'Validation error for health check interval minimum',
-                  }),
-                },
-              }}
-              placeholder={intl.formatMessage({
-                defaultMessage: '60',
-                description: 'Placeholder for health check interval',
-              })}
-              validationState={form.formState.errors.health_check_interval ? 'error' : undefined}
-            />
-            {form.formState.errors.health_check_interval && (
-              <FormUI.Message type="error" message={form.formState.errors.health_check_interval.message} />
-            )}
-            <Spacer />
-
-            <FormUI.Label htmlFor="mlflow.endpoint.create.health_check_timeout">
-              <FormattedMessage defaultMessage="Health check timeout (seconds):" description="Label for health check timeout" />
-            </FormUI.Label>
-            <RHFControlledComponents.Input
-              control={form.control}
-              id="mlflow.endpoint.create.health_check_timeout"
-              componentId="mlflow.endpoint.create.health_check_timeout"
-              name="health_check_timeout"
-              type="number"
-              rules={{
-                required: {
-                  value: selectedStatus === 'health-check',
-                  message: intl.formatMessage({
-                    defaultMessage: 'Health check timeout is required',
-                    description: 'Validation error for health check timeout',
-                  }),
-                },
-                min: {
-                  value: 1,
-                  message: intl.formatMessage({
-                    defaultMessage: 'Timeout must be at least 1 second',
-                    description: 'Validation error for health check timeout minimum',
-                  }),
-                },
-              }}
-              placeholder={intl.formatMessage({
-                defaultMessage: '5',
-                description: 'Placeholder for health check timeout',
-              })}
-              validationState={form.formState.errors.health_check_timeout ? 'error' : undefined}
-            />
-            {form.formState.errors.health_check_timeout && (
-              <FormUI.Message type="error" message={form.formState.errors.health_check_timeout.message} />
-            )}
-            <Spacer />
-
-            <FormUI.Label htmlFor="mlflow.endpoint.create.health_check_path">
-              <FormattedMessage defaultMessage="Health check endpoint path:" description="Label for health check path" />
-            </FormUI.Label>
-            <RHFControlledComponents.Input
-              control={form.control}
-              id="mlflow.endpoint.create.health_check_path"
-              componentId="mlflow.endpoint.create.health_check_path"
-              name="health_check_path"
-              rules={{
-                required: {
-                  value: selectedStatus === 'health-check',
-                  message: intl.formatMessage({
-                    defaultMessage: 'Health check endpoint path is required',
-                    description: 'Validation error for health check path',
-                  }),
-                },
-                pattern: {
-                  value: /^\/.+/,
-                  message: intl.formatMessage({
-                    defaultMessage: 'Path must start with /',
-                    description: 'Validation error for health check path format',
-                  }),
-                },
-              }}
-              placeholder={intl.formatMessage({
-                defaultMessage: '/health',
-                description: 'Placeholder for health check path',
-              })}
-              validationState={form.formState.errors.health_check_path ? 'error' : undefined}
-            />
-            {form.formState.errors.health_check_path && (
-              <FormUI.Message type="error" message={form.formState.errors.health_check_path.message} />
-            )}
-            <FormUI.Hint>
-              <FormattedMessage
-                defaultMessage="The endpoint path to ping for health checks (e.g., /health, /status)."
-                description="Hint for health check path field"
-              />
-            </FormUI.Hint>
-          </>
-        )}
       </Modal>
     </FormProvider>
   );
@@ -452,14 +298,10 @@ export const useCreateEndpointModal = ({
   const openModal = () => {
     setError(null);
     form.reset({
-      endpoint: '',
+      endpoint_url: '',
       server_name: preselectedServer || '',
       version_or_alias: '',
-      credential_ref: '',
-      status: 'active',
-      health_check_interval: '60',
-      health_check_timeout: '5',
-      health_check_path: '/health',
+      transport_type: 'streamable-http',
     });
     setOpen(true);
   };

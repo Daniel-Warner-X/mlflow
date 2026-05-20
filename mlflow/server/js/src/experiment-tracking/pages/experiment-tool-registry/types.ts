@@ -3,10 +3,13 @@ export interface ToolAlias {
   version: string;
 }
 
+export type MCPStatus = 'draft' | 'active' | 'deprecated' | 'deleted';
+
 export interface ToolVersion {
   version: string;
   description?: string;
   server_json?: string;
+  status: MCPStatus;
   creation_timestamp: number;
   last_updated_timestamp: number;
   metadata?: Array<{ key: string; value: string }>;
@@ -63,20 +66,16 @@ export interface RegisteredToolDetailsResponse {
   versions: ToolVersion[];
 }
 
-export interface DirectAccessBinding {
-  id: string;
-  endpoint: string;
-  server_name: string;
-  version?: string;
-  alias?: string;
-  credential_ref?: string;
-  status: 'active' | 'deprecated' | 'health-check';
-  created_timestamp: number;
+export interface MCPAccessBinding {
+  binding_id: string; // Auto-incrementing MLflow-managed identifier
+  server_name: string; // Parent MCPServer name (FK)
+  endpoint_url: string; // Required approved direct endpoint URL
+  transport_type: 'streamable-http' | 'sse'; // Connection protocol
+  server_version?: string; // Concrete version string (mutually exclusive with server_alias)
+  server_alias?: string; // Alias name (mutually exclusive with server_version)
+  workspace: string; // Workspace scope
+  created_by: string;
+  last_updated_by: string;
+  creation_timestamp: number;
   last_updated_timestamp: number;
-  metadata?: Array<{ key: string; value: string }>;
-  health_check?: {
-    interval_seconds: number;
-    timeout_seconds: number;
-    endpoint_path: string;
-  };
 }
