@@ -180,12 +180,12 @@ export const AccessBindingsCardView = ({
                   {binding.server_name}
                 </Typography.Text>
                 <div css={{ display: 'flex', gap: theme.spacing.xs, marginLeft: theme.spacing.sm }}>
-                  <Tooltip content="Copy endpoint URL">
+                  <Tooltip componentId={`${componentId}.card.copy`} content="Copy endpoint URL">
                     <div css={actionButtonStyles} onClick={handleCopy}>
                       <CopyIcon />
                     </div>
                   </Tooltip>
-                  <Tooltip content="Edit binding">
+                  <Tooltip componentId={`${componentId}.card.edit`} content="Edit binding">
                     <div css={actionButtonStyles} onClick={handleEdit}>
                       <PencilIcon />
                     </div>

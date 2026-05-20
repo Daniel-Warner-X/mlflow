@@ -43,7 +43,7 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: MCPAccessBindin
           const endpointUrl = getValue() as string;
           return (
             <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
-              <Tooltip content="Copy endpoint URL">
+              <Tooltip componentId="mlflow.access-bindings.table.copy" content="Copy endpoint URL">
                 <div
                   css={{
                     cursor: 'pointer',
