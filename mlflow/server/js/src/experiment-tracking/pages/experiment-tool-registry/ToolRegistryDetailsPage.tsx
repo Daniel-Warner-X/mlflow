@@ -4,13 +4,17 @@ import { ScrollablePageWrapper } from '../../../common/components/ScrollablePage
 import {
   Breadcrumb,
   Button,
+  ColumnsIcon,
   DropdownMenu,
   Header,
   OverflowIcon,
+  SegmentedControlButton,
+  SegmentedControlGroup,
   Spacer,
   useDesignSystemTheme,
   GenericSkeleton,
   TableSkeleton,
+  ZoomMarqueeSelection,
 } from '@databricks/design-system';
 import { FormattedMessage, useIntl } from 'react-intl';
 import Routes from '../../routes';
@@ -20,11 +24,13 @@ import { ExperimentPageTabName } from '../../constants';
 import { useRegisterToolModal } from './hooks/useRegisterToolModal';
 import { ToolVersionsTable } from './components/ToolVersionsTable';
 import { ToolContentPreview } from './components/ToolContentPreview';
+import { ToolContentCompare } from './components/ToolContentCompare';
 import { useEditAliasesModal } from '../../../common/hooks/useEditAliasesModal';
 import { useUpdateToolVersionMetadataModal } from './hooks/useUpdateToolVersionMetadataModal';
 import { DirectAccessBindingsList } from './components/DirectAccessBindingsList';
 import { useEditEndpointModal } from './hooks/useEditEndpointModal';
 import { useUpdateVersionStatusModal } from './hooks/useUpdateVersionStatusModal';
+import { useToolDetailsPageViewState, ToolVersionsTableMode } from './hooks/useToolDetailsPageViewState';
 
 const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
 
@@ -61,6 +67,21 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
   const [selectedVersion, setSelectedVersion] = useState<string | undefined>();
 
   const decodedToolName = toolName ? decodeURIComponent(toolName) : '';
+
+  const toolDetailsData = useMemo(() => {
+    if (!tool) return undefined;
+    return { tool, versions: tool.versions || [] };
+  }, [tool]);
+
+  const {
+    viewState,
+    setPreviewMode,
+    setCompareMode,
+    switchSides,
+    setComparedVersion,
+  } = useToolDetailsPageViewState(toolDetailsData, selectedVersion, setSelectedVersion);
+
+  const { mode } = viewState;
 
   useEffect(() => {
     if (!toolName) {
@@ -252,6 +273,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
   };
 
   const selectedVersionEntity = tool?.versions?.find((v) => v.version === selectedVersion);
+  const comparedVersionEntity = tool?.versions?.find((v) => v.version === viewState.comparedVersion);
 
   const aliasesByVersion = useMemo(() => {
     const result: Record<string, string[]> = {};
@@ -453,6 +475,44 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
         }
       />
       <Spacer shrinks={false} />
+      {!isEmptyVersions && (
+        <>
+          <div css={{ display: 'flex', gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
+            <SegmentedControlGroup
+              name="tool-version-mode"
+              componentId="mlflow.tool-registry.details.mode"
+              value={mode}
+              onChange={(e) => {
+                const newMode = e.target.value as ToolVersionsTableMode;
+                if (newMode === ToolVersionsTableMode.PREVIEW) {
+                  setPreviewMode();
+                } else {
+                  setCompareMode();
+                }
+              }}
+            >
+              <SegmentedControlButton value={ToolVersionsTableMode.PREVIEW}>
+                <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
+                  <ZoomMarqueeSelection />
+                  <FormattedMessage
+                    defaultMessage="Preview"
+                    description="Label for the preview mode on the MCP server details page"
+                  />
+                </div>
+              </SegmentedControlButton>
+              <SegmentedControlButton value={ToolVersionsTableMode.COMPARE}>
+                <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
+                  <ColumnsIcon />{' '}
+                  <FormattedMessage
+                    defaultMessage="Compare"
+                    description="Label for the compare mode on the MCP server details page"
+                  />
+                </div>
+              </SegmentedControlButton>
+            </SegmentedControlGroup>
+          </div>
+        </>
+      )}
       <div css={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         <div css={{ flex: showPreviewPane ? '0 0 320px' : 1, display: 'flex', flexDirection: 'column' }}>
           <ToolVersionsTable
@@ -460,7 +520,10 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
             registeredTool={tool}
             toolVersions={tool?.versions}
             selectedVersion={selectedVersion}
+            comparedVersion={viewState.comparedVersion}
             onUpdateSelectedVersion={setSelectedVersion}
+            onUpdateComparedVersion={setComparedVersion}
+            mode={mode}
             aliasesByVersion={aliasesByVersion}
             showEditAliasesModal={showEditAliasesModal}
           />
@@ -468,19 +531,30 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
         {showPreviewPane && (
           <div css={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
             <div css={{ borderLeft: `1px solid ${theme.colors.border}`, flex: 1, overflow: 'hidden', display: 'flex' }}>
-              <ToolContentPreview
-                toolVersion={selectedVersionEntity}
-                onDeletedVersion={handleDeleteVersion}
-                aliasesByVersion={aliasesByVersion}
-                registeredTool={tool}
-                onUpdatedContent={refetch}
-                onUpdateTool={handleUpdateTool}
-                showEditAliasesModal={showEditAliasesModal}
-                showEditToolVersionMetadataModal={showEditToolVersionMetadataModal}
-                showUpdateStatusModal={(version) => openUpdateVersionStatusModal(decodedToolName, version)}
-                allTools={allTools}
-                onEditBinding={openEditEndpointModal}
-              />
+              {mode === ToolVersionsTableMode.PREVIEW ? (
+                <ToolContentPreview
+                  toolVersion={selectedVersionEntity}
+                  onDeletedVersion={handleDeleteVersion}
+                  aliasesByVersion={aliasesByVersion}
+                  registeredTool={tool}
+                  onUpdatedContent={refetch}
+                  onUpdateTool={handleUpdateTool}
+                  showEditAliasesModal={showEditAliasesModal}
+                  showEditToolVersionMetadataModal={showEditToolVersionMetadataModal}
+                  showUpdateStatusModal={(version) => openUpdateVersionStatusModal(decodedToolName, version)}
+                  allTools={allTools}
+                  onEditBinding={openEditEndpointModal}
+                />
+              ) : (
+                <ToolContentCompare
+                  baselineVersion={selectedVersionEntity}
+                  comparedVersion={comparedVersionEntity}
+                  onSwitchSides={switchSides}
+                  registeredTool={tool}
+                  aliasesByVersion={aliasesByVersion}
+                  showEditAliasesModal={showEditAliasesModal}
+                />
+              )}
             </div>
           </div>
         )}

@@ -1,5 +1,6 @@
 import { useReactTable_unverifiedWithReact18 as useReactTable } from '@databricks/web-shared/react-table';
 import {
+  ChevronRightIcon,
   Empty,
   Table,
   TableCell,
@@ -14,6 +15,8 @@ import { useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { RegisteredTool, ToolVersion } from '../types';
 import { ToolVersionsTableCombinedCell } from './ToolVersionsTableCombinedCell';
+import { ToolVersionsDiffSelectorButton } from './ToolVersionsDiffSelectorButton';
+import { ToolVersionsTableMode } from '../hooks/useToolDetailsPageViewState';
 
 type ToolVersionsTableColumnDef = ColumnDef<ToolVersion>;
 
@@ -21,7 +24,10 @@ export const ToolVersionsTable = ({
   toolVersions,
   isLoading,
   onUpdateSelectedVersion,
+  onUpdateComparedVersion,
   selectedVersion,
+  comparedVersion,
+  mode,
   registeredTool,
   aliasesByVersion,
   showEditAliasesModal,
@@ -29,7 +35,10 @@ export const ToolVersionsTable = ({
   toolVersions?: ToolVersion[];
   isLoading: boolean;
   selectedVersion?: string;
+  comparedVersion?: string;
   onUpdateSelectedVersion: (version: string) => void;
+  onUpdateComparedVersion?: (version: string) => void;
+  mode: ToolVersionsTableMode;
   registeredTool?: RegisteredTool;
   aliasesByVersion: Record<string, string[]>;
   showEditAliasesModal?: (versionNumber: string) => void;
@@ -99,27 +108,63 @@ export const ToolVersionsTable = ({
         <TableSkeletonRows table={table} />
       ) : (
         table.getRowModel().rows.map((row) => {
-          const isSelected = row.original.version === selectedVersion;
+          const isSelectedSingle = mode === ToolVersionsTableMode.PREVIEW && selectedVersion === row.original.version;
+          const isSelectedFirstToCompare =
+            mode === ToolVersionsTableMode.COMPARE && selectedVersion === row.original.version;
+          const isSelectedSecondToCompare =
+            mode === ToolVersionsTableMode.COMPARE && comparedVersion === row.original.version;
+
+          const getColor = () => {
+            if (isSelectedSingle) {
+              return theme.colors.actionDefaultBackgroundPress;
+            } else if (isSelectedFirstToCompare || isSelectedSecondToCompare) {
+              return theme.colors.actionDefaultBackgroundHover;
+            }
+            return 'transparent';
+          };
+
+          const showCursorForEntireRow = mode === ToolVersionsTableMode.PREVIEW;
+
           return (
             <TableRow
               key={row.id}
               css={{
                 height: 'auto',
-                backgroundColor: isSelected ? theme.colors.actionTertiaryBackgroundPress : undefined,
-                cursor: 'pointer',
-                '&:hover': {
-                  backgroundColor: isSelected
-                    ? theme.colors.actionTertiaryBackgroundPress
-                    : theme.colors.actionTertiaryBackgroundHover,
-                },
+                backgroundColor: getColor(),
+                cursor: showCursorForEntireRow ? 'pointer' : 'default',
               }}
-              onClick={() => onUpdateSelectedVersion(row.original.version)}
+              onClick={() => {
+                if (mode !== ToolVersionsTableMode.PREVIEW) {
+                  return;
+                }
+                onUpdateSelectedVersion(row.original.version);
+              }}
             >
               {row.getAllCells().map((cell) => (
                 <TableCell key={cell.id} css={{ alignItems: 'flex-start', padding: theme.spacing.sm }}>
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
                 </TableCell>
               ))}
+              {isSelectedSingle && (
+                <div
+                  css={{
+                    width: theme.spacing.md * 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    paddingRight: theme.spacing.sm,
+                  }}
+                >
+                  <ChevronRightIcon />
+                </div>
+              )}
+              {mode === ToolVersionsTableMode.COMPARE && onUpdateComparedVersion && (
+                <ToolVersionsDiffSelectorButton
+                  onSelectFirst={() => onUpdateSelectedVersion(row.original.version)}
+                  onSelectSecond={() => onUpdateComparedVersion(row.original.version)}
+                  isSelectedFirstToCompare={isSelectedFirstToCompare}
+                  isSelectedSecondToCompare={isSelectedSecondToCompare}
+                />
+              )}
             </TableRow>
           );
         })
