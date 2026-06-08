@@ -237,22 +237,6 @@ export const useRegisterToolModal = ({
         />
         <Spacer />
 
-        <FormUI.Label htmlFor="mlflow.tools.create.iconSvg">
-          <FormattedMessage defaultMessage="Icon:" description="Label for MCP server SVG icon field" />
-        </FormUI.Label>
-        <RHFControlledComponents.TextArea
-          control={form.control}
-          id="mlflow.tools.create.iconSvg"
-          componentId="mlflow.tools.create.iconSvg"
-          name="iconSvg"
-          autoSize={{ minRows: 3, maxRows: 8 }}
-          placeholder={intl.formatMessage({
-            defaultMessage: '<svg>...</svg> or leave blank to use server.json',
-            description: 'Placeholder for MCP server SVG icon field',
-          })}
-        />
-        <Spacer />
-
         <FormUI.Label htmlFor="mlflow.tools.create.serverJson">
           <FormattedMessage defaultMessage="server.json:" description="Label for MCP server configuration field" />
           <span css={{ color: theme.colors.textValidationDanger }}> *</span>
@@ -340,6 +324,22 @@ export const useRegisterToolModal = ({
           name="tools"
           autoSize={{ minRows: 3, maxRows: 8 }}
           placeholder='[{"name": "search", "description": "Search the web"}]'
+        />
+        <Spacer />
+
+        <FormUI.Label htmlFor="mlflow.tools.create.iconSvg">
+          <FormattedMessage defaultMessage="Icon:" description="Label for MCP server SVG icon field" />
+        </FormUI.Label>
+        <RHFControlledComponents.TextArea
+          control={form.control}
+          id="mlflow.tools.create.iconSvg"
+          componentId="mlflow.tools.create.iconSvg"
+          name="iconSvg"
+          autoSize={{ minRows: 3, maxRows: 8 }}
+          placeholder={intl.formatMessage({
+            defaultMessage: '<svg>...</svg> or leave blank to use server.json',
+            description: 'Placeholder for MCP server SVG icon field',
+          })}
         />
       </Modal>
     </FormProvider>
