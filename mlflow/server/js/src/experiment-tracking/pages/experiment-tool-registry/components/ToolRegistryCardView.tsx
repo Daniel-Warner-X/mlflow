@@ -4,6 +4,7 @@ import { Link } from '../../../../common/utils/RoutingUtils';
 import Routes from '../../../routes';
 import type { RegisteredTool } from '../types';
 import { ToolIcon } from './ToolIcon';
+import { getEffectiveDisplayName } from '../utils/accessBindingUtils';
 import Utils from '../../../../common/utils/Utils';
 
 interface ToolRegistryCardViewProps {
@@ -127,7 +128,7 @@ export const ToolRegistryCardView = ({
       }}
     >
       {tools.map((tool) => {
-        const displayName = tool.use_display_name_in_list && tool.display_name ? tool.display_name : tool.internal_name;
+        const displayName = getEffectiveDisplayName(tool);
         const description = tool.parsed_server_json?.description;
 
         const containerStyles = {
@@ -185,7 +186,7 @@ export const ToolRegistryCardView = ({
           >
             <div css={containerStyles}>
               <div css={iconWrapperStyles}>
-                <ToolIcon parsedServerJson={tool.parsed_server_json} size={20} />
+                <ToolIcon icons={tool.icons} parsedServerJson={tool.parsed_server_json} serverJson={tool.server_json} size={20} />
               </div>
               <div css={contentStyles}>
                 <span role="heading" aria-level={3}>

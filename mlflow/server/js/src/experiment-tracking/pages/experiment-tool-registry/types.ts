@@ -5,11 +5,19 @@ export interface ToolAlias {
 
 export type MCPStatus = 'draft' | 'active' | 'deprecated' | 'deleted';
 
+export interface MCPTool {
+  name: string;
+  description?: string;
+}
+
 export interface ToolVersion {
   version: string;
   description?: string;
   server_json?: string;
   status: MCPStatus;
+  tools?: MCPTool[];
+  tags?: Record<string, string>;
+  source?: string;
   creation_timestamp: number;
   last_updated_timestamp: number;
   metadata?: Array<{ key: string; value: string }>;
@@ -25,6 +33,11 @@ export interface ServerPackage {
   packageArguments?: Array<{ [key: string]: any }>;
 }
 
+export interface ServerIcon {
+  src?: string;
+  mimeType?: string;
+}
+
 export interface ParsedServerJson {
   title?: string;
   description?: string;
@@ -35,15 +48,13 @@ export interface ParsedServerJson {
     source?: string;
   };
   packages?: ServerPackage[];
-  icons?: Array<{
-    src?: string;
-    mimeType?: string;
-  }>;
+  icons?: ServerIcon[];
 }
 
 export interface RegisteredTool {
   internal_name: string; // From server.json name field, immutable
-  display_name?: string; // Optional, mutable, user-friendly override
+  display_name?: string; // Optional mutable override; falls back to server.json title when unset
+  icons?: ServerIcon[]; // Optional mutable override; falls back to server.json icons when unset
   server_version?: string; // From server.json version field
   description?: string;
   server_json?: string; // Raw JSON string
@@ -53,7 +64,6 @@ export interface RegisteredTool {
   tags?: Array<{ key: string; value: string }>;
   aliases?: ToolAlias[];
   versions?: ToolVersion[];
-  use_display_name_in_list?: boolean; // Whether to show display_name instead of internal_name in the table
 }
 
 export interface ToolsTableMetadata {
@@ -70,6 +80,8 @@ export interface MCPAccessBinding {
   binding_id: string; // Auto-incrementing MLflow-managed identifier
   server_name: string; // Parent MCPServer name (FK)
   endpoint_url: string; // Required approved direct endpoint URL
+  description?: string; // Optional human-readable description of this deployment
+  labels?: string[]; // Optional display labels shown as badges on the binding card
   transport_type: 'streamable-http' | 'sse'; // Connection protocol
   server_version?: string; // Concrete version string (mutually exclusive with server_alias)
   server_alias?: string; // Alias name (mutually exclusive with server_version)

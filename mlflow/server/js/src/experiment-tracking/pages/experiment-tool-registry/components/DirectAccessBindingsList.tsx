@@ -10,29 +10,11 @@ import { FormattedMessage, useIntl } from 'react-intl';
 import type { MCPAccessBinding, RegisteredTool } from '../types';
 import Utils from '../../../../common/utils/Utils';
 import { useState, useEffect } from 'react';
+import { Link } from '../../../../common/utils/RoutingUtils';
+import Routes from '../../../routes';
 import { useCreateEndpointModal } from '../hooks/useCreateEndpointModal';
-
-const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
-
-const loadBindingsFromStorage = (): MCPAccessBinding[] => {
-  try {
-    const stored = localStorage.getItem(BINDINGS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to load bindings from localStorage:', error);
-  }
-  return [];
-};
-
-const saveBindingsToStorage = (bindings: MCPAccessBinding[]) => {
-  try {
-    localStorage.setItem(BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
-  } catch (error) {
-    console.error('Failed to save bindings to localStorage:', error);
-  }
-};
+import { getBindingVersionLabel } from '../utils/accessBindingUtils';
+import { loadBindingsFromStorage, saveBindingsToStorage } from '../utils/registryStorage';
 
 export const DirectAccessBindingsList = ({
   serverName,
@@ -52,20 +34,20 @@ export const DirectAccessBindingsList = ({
     preselectedServer: serverName,
     onSuccess: () => {
       // Reload bindings for this server
-      const allBindings = loadBindingsFromStorage();
+      const allBindings = loadBindingsFromStorage(tools);
       const serverBindings = allBindings.filter((b) => b.server_name === serverName);
       setBindings(serverBindings);
     },
   });
 
   useEffect(() => {
-    const allBindings = loadBindingsFromStorage();
+    const allBindings = loadBindingsFromStorage(tools);
     const serverBindings = allBindings.filter((b) => b.server_name === serverName);
     setBindings(serverBindings);
   }, [serverName]);
 
   const handleDelete = (bindingId: string) => {
-    const allBindings = loadBindingsFromStorage();
+    const allBindings = loadBindingsFromStorage(tools);
     const updatedBindings = allBindings.filter((b) => b.binding_id !== bindingId);
     saveBindingsToStorage(updatedBindings);
     setBindings(updatedBindings.filter((b) => b.server_name === serverName));
@@ -111,7 +93,18 @@ export const DirectAccessBindingsList = ({
                 alignItems: 'flex-start',
               }}
             >
-              <div css={{ flex: 1 }}>
+              <Link
+                componentId={`mlflow.tool-registry.details.binding_link.${binding.binding_id}`}
+                to={Routes.getAccessBindingDetailsPageRoute(binding.binding_id)}
+                css={{
+                  flex: 1,
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  },
+                }}
+              >
                 <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm, marginBottom: theme.spacing.xs }}>
                   <span css={{ fontFamily: 'monospace', fontSize: theme.typography.fontSizeSm, fontWeight: 600 }}>
                     {binding.endpoint_url}
@@ -124,12 +117,17 @@ export const DirectAccessBindingsList = ({
                   </Tag>
                 </div>
                 <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, fontSize: theme.typography.fontSizeSm }}>
+                  {binding.description && (
+                    <Typography.Text color="secondary" size="sm">
+                      {binding.description}
+                    </Typography.Text>
+                  )}
                   <div css={{ display: 'flex', gap: theme.spacing.md }}>
                     <span>
                       <strong>
                         <FormattedMessage defaultMessage="Target:" description="Label for binding target" />
                       </strong>{' '}
-                      {binding.server_alias ? `@ ${binding.server_alias}` : binding.server_version ? `v${binding.server_version}` : '-'}
+                      {getBindingVersionLabel(binding)}
                     </span>
                     <span>
                       <strong>
@@ -145,7 +143,7 @@ export const DirectAccessBindingsList = ({
                     </span>
                   </div>
                 </div>
-              </div>
+              </Link>
               <div css={{ display: 'flex', gap: theme.spacing.sm, alignItems: 'center' }}>
                 <Typography.Link
                   componentId="mlflow.tool-registry.details.edit_binding"

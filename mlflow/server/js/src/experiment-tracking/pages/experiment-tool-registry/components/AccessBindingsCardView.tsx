@@ -1,16 +1,20 @@
-import { Typography, useDesignSystemTheme, Empty, SearchIcon, Tag, CopyIcon, PencilIcon, Tooltip } from '@databricks/design-system';
+import { Typography, useDesignSystemTheme, Empty, SearchIcon, Button, PlusIcon, ConnectIcon } from '@databricks/design-system';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { MCPAccessBinding, RegisteredTool } from '../types';
 import Utils from '../../../../common/utils/Utils';
-import { ToolIcon } from './ToolIcon';
+import { Link } from '../../../../common/utils/RoutingUtils';
+import Routes from '../../../routes';
+import { getBindingVersionLabel, getEffectiveDisplayName } from '../utils/accessBindingUtils';
 
 interface AccessBindingsCardViewProps {
   bindings: MCPAccessBinding[];
   tools: RegisteredTool[];
   isLoading: boolean;
   isFiltered: boolean;
-  onEditBinding?: (binding: MCPAccessBinding) => void;
   componentId: string;
+  onCreateServer?: () => void;
+  onCreateBinding?: () => void;
+  onViewServers?: () => void;
 }
 
 export const AccessBindingsCardView = ({
@@ -18,11 +22,14 @@ export const AccessBindingsCardView = ({
   tools,
   isLoading,
   isFiltered,
-  onEditBinding,
   componentId,
+  onCreateServer,
+  onCreateBinding,
+  onViewServers,
 }: AccessBindingsCardViewProps) => {
   const { theme } = useDesignSystemTheme();
   const intl = useIntl();
+  const hasServers = tools.length > 0;
 
   if (!isLoading && bindings.length === 0) {
     if (isFiltered) {
@@ -76,11 +83,72 @@ export const AccessBindingsCardView = ({
         }}
       >
         <Empty
+          title={
+            hasServers ? (
+              <FormattedMessage
+                defaultMessage="Create access binding"
+                description="A header for the empty state in the access bindings card view"
+              />
+            ) : (
+              <FormattedMessage
+                defaultMessage="Create MCP server"
+                description="A header for the empty state when no MCP servers exist yet"
+              />
+            )
+          }
           description={
-            <FormattedMessage
-              defaultMessage="No access bindings created. Create access bindings to connect to MCP servers."
-              description="Empty state message for access bindings"
-            />
+            hasServers ? (
+              <FormattedMessage
+                defaultMessage="Create access bindings to connect to your registered MCP servers."
+                description="Empty state message for access bindings when servers exist"
+              />
+            ) : (
+              <FormattedMessage
+                defaultMessage="Register an MCP server before creating access bindings."
+                description="Empty state message for access bindings when no servers exist"
+              />
+            )
+          }
+          button={
+            hasServers ? (
+              <div css={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'center' }}>
+                <Button
+                  componentId={`${componentId}.empty.create_binding`}
+                  data-testid="create-access-binding-empty-state-button"
+                  onClick={onCreateBinding}
+                  type="primary"
+                  icon={<PlusIcon />}
+                >
+                  <FormattedMessage
+                    defaultMessage="Create access binding"
+                    description="Access bindings empty state primary CTA when servers exist"
+                  />
+                </Button>
+                <Button
+                  componentId={`${componentId}.empty.view_servers`}
+                  onClick={onViewServers}
+                  type="tertiary"
+                >
+                  <FormattedMessage
+                    defaultMessage="View MCP servers"
+                    description="Access bindings empty state secondary CTA to switch to servers tab"
+                  />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                componentId={`${componentId}.empty.create_server`}
+                data-testid="create-mcp-server-empty-state-button"
+                onClick={onCreateServer}
+                type="primary"
+                icon={<PlusIcon />}
+              >
+                <FormattedMessage
+                  defaultMessage="Create MCP server"
+                  description="Access bindings empty state CTA when no servers exist"
+                />
+              </Button>
+            )
           }
         />
       </div>
@@ -98,128 +166,93 @@ export const AccessBindingsCardView = ({
     >
       {bindings.map((binding) => {
         const server = tools.find((t) => t.internal_name === binding.server_name);
-
-        const containerStyles = {
-          overflow: 'hidden',
-          border: `1px solid ${theme.colors.borderDecorative}`,
-          borderRadius: theme.borders.borderRadiusMd,
-          background: theme.colors.backgroundPrimary,
-          padding: theme.spacing.sm + theme.spacing.xs,
-          display: 'flex',
-          gap: theme.spacing.sm,
-          boxSizing: 'border-box' as const,
-          boxShadow: theme.shadows.sm,
-          transition: 'background 150ms ease',
-          '&:hover': {
-            background: theme.colors.actionDefaultBackgroundHover,
-          },
-        };
-
-        const actionButtonStyles = {
-          cursor: 'pointer',
-          padding: theme.spacing.xs,
-          borderRadius: theme.borders.borderRadiusSm,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          transition: 'background 150ms ease',
-          color: theme.colors.textSecondary,
-          '&:hover': {
-            background: theme.colors.actionDefaultBackgroundPress,
-            color: theme.colors.textPrimary,
-          },
-        };
-
-        const iconWrapperStyles = {
-          borderRadius: theme.borders.borderRadiusSm,
-          background: theme.colors.actionDefaultBackgroundHover,
-          padding: theme.spacing.xs,
-          color: theme.colors.blue500,
-          flexShrink: 0,
-          height: 'min-content',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        };
-
-        const getVersionAliasLabel = () => {
-          if (binding.server_alias) {
-            return `@ ${binding.server_alias}`;
-          }
-          if (binding.server_version) {
-            return `v${binding.server_version}`;
-          }
-          return 'Latest';
-        };
-
-        const getTransportLabel = () => {
-          return binding.transport_type === 'streamable-http' ? 'Streamable HTTP' : 'SSE';
-        };
-
-        const handleCopy = (e: React.MouseEvent) => {
-          e.stopPropagation();
-          navigator.clipboard.writeText(binding.endpoint_url);
-        };
-
-        const handleEdit = (e: React.MouseEvent) => {
-          e.stopPropagation();
-          onEditBinding?.(binding);
-        };
+        const serverDisplayName = server ? getEffectiveDisplayName(server) : binding.server_name;
 
         return (
-          <div
+          <Link
             key={binding.binding_id}
-            css={containerStyles}
+            componentId={`${componentId}.card.${binding.binding_id}`}
+            to={Routes.getAccessBindingDetailsPageRoute(binding.binding_id)}
+            css={{
+              overflow: 'hidden',
+              border: `1px solid ${theme.colors.borderDecorative}`,
+              borderLeft: `3px solid ${theme.colors.turquoise}`,
+              borderRadius: theme.borders.borderRadiusMd,
+              background: theme.colors.backgroundPrimary,
+              padding: theme.spacing.sm + theme.spacing.xs,
+              display: 'flex',
+              gap: theme.spacing.sm,
+              boxSizing: 'border-box',
+              boxShadow: theme.shadows.sm,
+              transition: 'background 150ms ease',
+              textDecoration: 'none',
+              color: 'inherit',
+              cursor: 'pointer',
+              '&:hover': {
+                background: theme.colors.actionDefaultBackgroundHover,
+              },
+            }}
           >
-            <div css={iconWrapperStyles}>
-              <ToolIcon parsedServerJson={server?.parsed_server_json} size={20} />
+            <div
+              css={{
+                borderRadius: theme.borders.borderRadiusSm,
+                background: theme.colors.actionDefaultBackgroundHover,
+                padding: theme.spacing.xs,
+                color: theme.colors.turquoise,
+                flexShrink: 0,
+                height: 'min-content',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 20,
+              }}
+            >
+              <ConnectIcon />
             </div>
             <div css={{ display: 'flex', flexDirection: 'column', gap: theme.spacing.xs, flex: 1, minWidth: 0 }}>
-              <div css={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div css={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: theme.spacing.sm }}>
                 <Typography.Text bold size="md">
-                  {binding.server_name}
+                  {serverDisplayName}
                 </Typography.Text>
-                <div css={{ display: 'flex', gap: theme.spacing.xs, marginLeft: theme.spacing.sm }}>
-                  <Tooltip componentId={`${componentId}.card.copy`} content="Copy endpoint URL">
-                    <div css={actionButtonStyles} onClick={handleCopy}>
-                      <CopyIcon />
-                    </div>
-                  </Tooltip>
-                  <Tooltip componentId={`${componentId}.card.edit`} content="Edit binding">
-                    <div css={actionButtonStyles} onClick={handleEdit}>
-                      <PencilIcon />
-                    </div>
-                  </Tooltip>
+                <Typography.Text color="secondary" size="sm" css={{ flexShrink: 0 }}>
+                  {getBindingVersionLabel(binding)}
+                </Typography.Text>
+              </div>
+              {(binding.description || binding.last_updated_timestamp) && (
+                <div css={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm, alignItems: 'baseline' }}>
+                  {binding.description && (
+                    <Typography.Text color="secondary" size="sm">
+                      {binding.description}
+                    </Typography.Text>
+                  )}
+                  {binding.last_updated_timestamp && (
+                    <Typography.Text color="secondary" size="sm">
+                      {Utils.formatTimestamp(binding.last_updated_timestamp, intl)}
+                    </Typography.Text>
+                  )}
                 </div>
-              </div>
-              <Typography.Text
-                color="secondary"
-                size="sm"
-                css={{
-                  fontFamily: 'monospace',
-                  fontSize: '0.85em',
-                  wordBreak: 'break-all',
-                }}
-              >
-                {binding.endpoint_url}
-              </Typography.Text>
-
-              <div css={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', alignItems: 'center' }}>
-                <Tag componentId={`${componentId}.card.version-tag`} color="charcoal">
-                  {getVersionAliasLabel()}
-                </Tag>
-                <Tag componentId={`${componentId}.card.transport-tag`} color="charcoal">
-                  {getTransportLabel()}
-                </Tag>
-              </div>
-
-              {binding.last_updated_timestamp && (
-                <Typography.Text color="secondary" size="sm">
-                  {Utils.formatTimestamp(binding.last_updated_timestamp, intl)}
-                </Typography.Text>
+              )}
+              {binding.labels && binding.labels.length > 0 && (
+                <div css={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.xs }}>
+                  {binding.labels.map((label) => (
+                    <span
+                      key={label}
+                      css={{
+                        borderRadius: theme.borders.borderRadiusSm,
+                        background: theme.colors.actionDefaultBackgroundHover,
+                        color: theme.colors.blue500,
+                        padding: `2px ${theme.spacing.xs}px`,
+                        fontSize: theme.typography.fontSizeSm,
+                        lineHeight: theme.typography.lineHeightSm,
+                      }}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
-          </div>
+          </Link>
         );
       })}
     </div>

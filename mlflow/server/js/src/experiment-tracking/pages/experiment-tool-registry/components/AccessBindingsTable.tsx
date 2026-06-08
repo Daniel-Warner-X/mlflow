@@ -22,8 +22,9 @@ import { useMemo } from 'react';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { MCPAccessBinding } from '../types';
 import Utils from '../../../../common/utils/Utils';
-import { Link } from '../../../../common/utils/RoutingUtils';
+import { Link, useNavigate } from '../../../../common/utils/RoutingUtils';
 import Routes from '../../../routes';
+import { getBindingVersionLabel } from '../utils/accessBindingUtils';
 
 type AccessBindingsColumnDef = ColumnDef<MCPAccessBinding>;
 
@@ -39,8 +40,9 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: MCPAccessBindin
         }),
         accessorKey: 'endpoint_url',
         id: 'endpoint',
-        cell: ({ getValue }) => {
+        cell: ({ row, getValue }) => {
           const endpointUrl = getValue() as string;
+          const binding = row.original;
           return (
             <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.xs }}>
               <Tooltip componentId="mlflow.access-bindings.table.copy" content="Copy endpoint URL">
@@ -67,7 +69,13 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: MCPAccessBindin
                   <CopyIcon />
                 </div>
               </Tooltip>
-              <span css={{ fontFamily: 'monospace', fontSize: '0.9em', flex: 1 }}>{endpointUrl}</span>
+              <Link
+                componentId="mlflow.access-bindings.table.endpoint_link"
+                to={Routes.getAccessBindingDetailsPageRoute(binding.binding_id)}
+                css={{ fontFamily: 'monospace', fontSize: '0.9em', flex: 1 }}
+              >
+                {endpointUrl}
+              </Link>
             </div>
           );
         },
@@ -99,13 +107,7 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: MCPAccessBindin
         id: 'version_alias',
         cell: ({ row }) => {
           const binding = row.original;
-          if (binding.server_alias) {
-            return <span>@ {binding.server_alias}</span>;
-          }
-          if (binding.server_version) {
-            return <span>v{binding.server_version}</span>;
-          }
-          return <span css={{ fontStyle: 'italic', opacity: 0.6 }}>Latest</span>;
+          return <span>{getBindingVersionLabel(binding)}</span>;
         },
       },
       {
@@ -136,7 +138,10 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: MCPAccessBindin
         cell: ({ row }) => (
           <Typography.Link
             componentId="mlflow.access-bindings.edit-link"
-            onClick={() => onEditBinding?.(row.original)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEditBinding?.(row.original);
+            }}
           >
             <FormattedMessage defaultMessage="Edit" description="Edit link for endpoint" />
           </Typography.Link>
@@ -150,6 +155,7 @@ const useAccessBindingsTableColumns = (onEditBinding?: (binding: MCPAccessBindin
 
 export const AccessBindingsTable = ({
   bindings,
+  hasServers,
   hasNextPage,
   hasPreviousPage,
   isLoading,
@@ -157,10 +163,13 @@ export const AccessBindingsTable = ({
   onNextPage,
   onPreviousPage,
   onCreateBinding,
+  onCreateServer,
+  onViewServers,
   onEditBinding,
   componentId,
 }: {
   bindings?: MCPAccessBinding[];
+  hasServers: boolean;
   hasNextPage: boolean;
   hasPreviousPage: boolean;
   isLoading?: boolean;
@@ -168,10 +177,13 @@ export const AccessBindingsTable = ({
   onNextPage: () => void;
   onPreviousPage: () => void;
   onCreateBinding: () => void;
+  onCreateServer: () => void;
+  onViewServers: () => void;
   onEditBinding?: (binding: MCPAccessBinding) => void;
   componentId: string;
 }) => {
   const { theme } = useDesignSystemTheme();
+  const navigate = useNavigate();
   const columns = useAccessBindingsTableColumns(onEditBinding);
 
   const table = useReactTable(
@@ -239,30 +251,71 @@ export const AccessBindingsTable = ({
         >
           <Empty
             title={
-              <FormattedMessage
-                defaultMessage="Create endpoint"
-                description="A header for the empty state in the endpoints table"
-              />
+              hasServers ? (
+                <FormattedMessage
+                  defaultMessage="Create access binding"
+                  description="A header for the empty state in the access bindings table"
+                />
+              ) : (
+                <FormattedMessage
+                  defaultMessage="Create MCP server"
+                  description="A header for the empty state when no MCP servers exist yet"
+                />
+              )
             }
             description={
-              <FormattedMessage
-                defaultMessage="Create and manage direct access endpoints for your MCP servers."
-                description="Guidelines for the user on how to create a new endpoint"
-              />
+              hasServers ? (
+                <FormattedMessage
+                  defaultMessage="Create access bindings to connect to your registered MCP servers."
+                  description="Guidelines for the user on how to create a new access binding"
+                />
+              ) : (
+                <FormattedMessage
+                  defaultMessage="Register an MCP server before creating access bindings."
+                  description="Empty state message for access bindings when no servers exist"
+                />
+              )
             }
             button={
-              <Button
-                componentId="mlflow.access-bindings.table.create_endpoint"
-                data-testid="create-endpoint-empty-state-button"
-                onClick={onCreateBinding}
-                type="primary"
-                icon={<PlusIcon />}
-              >
-                <FormattedMessage
-                  defaultMessage="Create endpoint"
-                  description="Endpoints empty state CTA"
-                />
-              </Button>
+              hasServers ? (
+                <div css={{ display: 'flex', gap: theme.spacing.sm, flexWrap: 'wrap', justifyContent: 'center' }}>
+                  <Button
+                    componentId="mlflow.access-bindings.table.create_binding"
+                    data-testid="create-access-binding-empty-state-button"
+                    onClick={onCreateBinding}
+                    type="primary"
+                    icon={<PlusIcon />}
+                  >
+                    <FormattedMessage
+                      defaultMessage="Create access binding"
+                      description="Access bindings empty state primary CTA when servers exist"
+                    />
+                  </Button>
+                  <Button
+                    componentId="mlflow.access-bindings.table.view_servers"
+                    onClick={onViewServers}
+                    type="tertiary"
+                  >
+                    <FormattedMessage
+                      defaultMessage="View MCP servers"
+                      description="Access bindings empty state secondary CTA to switch to servers tab"
+                    />
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  componentId="mlflow.access-bindings.table.create_server"
+                  data-testid="create-mcp-server-empty-state-button"
+                  onClick={onCreateServer}
+                  type="primary"
+                  icon={<PlusIcon />}
+                >
+                  <FormattedMessage
+                    defaultMessage="Create MCP server"
+                    description="Access bindings empty state CTA when no servers exist"
+                  />
+                </Button>
+              )
             }
           />
         </div>
@@ -297,7 +350,11 @@ export const AccessBindingsTable = ({
         <TableSkeletonRows table={table} />
       ) : (
         table.getRowModel().rows.map((row) => (
-          <TableRow key={row.id} css={{ height: theme.general.buttonHeight }}>
+          <TableRow
+            key={row.id}
+            css={{ height: theme.general.buttonHeight, cursor: 'pointer' }}
+            onClick={() => navigate(Routes.getAccessBindingDetailsPageRoute(row.original.binding_id))}
+          >
             {row.getAllCells().map((cell) => (
               <TableCell key={cell.id} css={{ alignItems: 'center' }}>
                 {flexRender(cell.column.columnDef.cell, cell.getContext())}

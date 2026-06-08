@@ -6,7 +6,6 @@ import {
   Typography,
   useDesignSystemTheme,
   PlayIcon,
-  Checkbox,
   Tag,
 } from '@databricks/design-system';
 import { useState } from 'react';
@@ -16,6 +15,7 @@ import Utils from '../../../../common/utils/Utils';
 import { ShowArtifactCodeSnippet } from '../../../components/artifact-view-components/ShowArtifactCodeSnippet';
 import { DirectAccessBindingsList } from './DirectAccessBindingsList';
 import { ToolIcon } from './ToolIcon';
+import { getEffectiveDisplayName } from '../utils/accessBindingUtils';
 
 const getStatusColor = (status: MCPStatus) => {
   switch (status) {
@@ -47,7 +47,6 @@ export const ToolContentPreview = ({
   aliasesByVersion,
   registeredTool,
   onUpdatedContent,
-  onUpdateTool,
   showEditAliasesModal,
   showEditToolVersionMetadataModal,
   showUpdateStatusModal,
@@ -59,7 +58,6 @@ export const ToolContentPreview = ({
   aliasesByVersion: Record<string, string[]>;
   registeredTool?: RegisteredTool;
   onUpdatedContent?: () => void;
-  onUpdateTool?: (updatedTool: RegisteredTool) => void;
   showEditAliasesModal?: (versionNumber: string) => void;
   showEditToolVersionMetadataModal?: (toolName: string, toolVersion: ToolVersion) => void;
   showUpdateStatusModal?: (version: ToolVersion) => void;
@@ -142,12 +140,17 @@ export const ToolContentPreview = ({
 
       {/* Server Icon */}
       <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md, marginBottom: theme.spacing.md }}>
-        <ToolIcon parsedServerJson={registeredTool?.parsed_server_json} size={48} />
+        <ToolIcon
+          icons={registeredTool?.icons}
+          parsedServerJson={registeredTool?.parsed_server_json}
+          serverJson={registeredTool?.server_json}
+          size={48}
+        />
         <div>
           <Typography.Title level={4} withoutMargins>
-            {registeredTool?.display_name || registeredTool?.internal_name}
+            {registeredTool ? getEffectiveDisplayName(registeredTool) : ''}
           </Typography.Title>
-          {registeredTool?.display_name && (
+          {registeredTool && getEffectiveDisplayName(registeredTool) !== registeredTool.internal_name && (
             <Typography.Text color="secondary" size="sm" css={{ fontFamily: 'monospace' }}>
               {registeredTool.internal_name}
             </Typography.Text>
@@ -173,34 +176,15 @@ export const ToolContentPreview = ({
           {registeredTool?.internal_name}
         </Typography.Text>
 
-        {/* Display Name (from server.json) */}
-        {registeredTool?.display_name && (
+        {/* Display name (user override or server.json title) */}
+        {(registeredTool?.display_name || registeredTool?.parsed_server_json?.title) && (
           <>
             <Typography.Text bold>
-              <FormattedMessage defaultMessage="Title:" description="Label for display name" />
+              <FormattedMessage defaultMessage="Display name:" description="Label for display name" />
             </Typography.Text>
-            <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.md }}>
-              <Typography.Text>{registeredTool.display_name}</Typography.Text>
-              <Checkbox
-                componentId="mlflow.tool-registry.details.use_display_name_checkbox"
-                isChecked={registeredTool.use_display_name_in_list ?? false}
-                onChange={(checked) => {
-                  if (registeredTool && onUpdateTool) {
-                    onUpdateTool({
-                      ...registeredTool,
-                      use_display_name_in_list: checked,
-                    });
-                  }
-                }}
-              >
-                <Typography.Text css={{ fontSize: theme.typography.fontSizeSm }}>
-                  <FormattedMessage
-                    defaultMessage="Display name"
-                    description="Checkbox label to use display name in table"
-                  />
-                </Typography.Text>
-              </Checkbox>
-            </div>
+            <Typography.Text>
+              {registeredTool ? getEffectiveDisplayName(registeredTool) : ''}
+            </Typography.Text>
           </>
         )}
 

@@ -50,6 +50,19 @@ const getToolPagesRouteDefs = () => {
       } satisfies RouteHandle,
     },
     {
+      path: RoutePaths.accessBindingDetailsPage,
+      element: createLazyRouteElement(() => import('./pages/experiment-tool-registry/AccessBindingDetailsPage')),
+      pageId: PageId.accessBindingDetailsPage,
+      handle: {
+        getPageTitle: (params) => `Access Binding: ${params['bindingId']}`,
+        getAssistantPrompts: () => [
+          'How do I connect to this MCP server?',
+          'Show me the mcp.json configuration for this binding.',
+          'Which MCP server version does this binding use?',
+        ],
+      } satisfies RouteHandle,
+    },
+    {
       path: RoutePaths.toolDetailsPage,
       element: createLazyRouteElement(() => import('./pages/experiment-tool-registry/ToolRegistryDetailsPage')),
       pageId: PageId.toolDetailsPage,

@@ -21,53 +21,16 @@ import { useRegisterToolModal } from './hooks/useRegisterToolModal';
 import { useCreateEndpointModal } from './hooks/useCreateEndpointModal';
 import { useEditEndpointModal } from './hooks/useEditEndpointModal';
 import type { RegisteredTool, ToolVersion, MCPAccessBinding } from './types';
-
-const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
-const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
-
-// Helper to load tools from localStorage
-const loadToolsFromStorage = (): RegisteredTool[] => {
-  try {
-    const stored = localStorage.getItem(TOOLS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to load tools from localStorage:', error);
-  }
-  return [];
-};
-
-// Helper to save tools to localStorage
-const saveToolsToStorage = (tools: RegisteredTool[]) => {
-  try {
-    localStorage.setItem(TOOLS_STORAGE_KEY, JSON.stringify(tools));
-  } catch (error) {
-    console.error('Failed to save tools to localStorage:', error);
-  }
-};
-
-// Helper to load bindings from localStorage
-const loadBindingsFromStorage = (): MCPAccessBinding[] => {
-  try {
-    const stored = localStorage.getItem(BINDINGS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to load bindings from localStorage:', error);
-  }
-  return [];
-};
-
-// Helper to save bindings to localStorage
-const saveBindingsToStorage = (bindings: MCPAccessBinding[]) => {
-  try {
-    localStorage.setItem(BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
-  } catch (error) {
-    console.error('Failed to save bindings to localStorage:', error);
-  }
-};
+import {
+  loadToolsFromStorage,
+  saveToolsToStorage,
+  loadBindingsFromStorage,
+  saveBindingsToStorage,
+  loadRawBindingsFromStorage,
+  migrateBindings,
+} from './utils/registryStorage';
+import { getEffectiveDisplayName } from './utils/accessBindingUtils';
+import { buildParsedServerJsonIcons } from './utils/serverIconUtils';
 
 enum TabMode {
   SERVERS = 'servers',
@@ -84,38 +47,52 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
   const [searchFilter, setSearchFilter] = useState('');
   const [tools, setTools] = useState<RegisteredTool[]>([]);
   const [bindings, setBindings] = useState<MCPAccessBinding[]>([]);
-  const [tabMode, setTabMode] = useState<TabMode>(TabMode.SERVERS);
+  const [tabMode, setTabMode] = useState<TabMode>(TabMode.ACCESS_BINDINGS);
   const [serverViewMode, setServerViewMode] = useState<ServerViewMode>(ServerViewMode.CARDS);
   const componentId = experimentId ? 'mlflow.tool-registry.experiment.list' : 'mlflow.tool-registry.global.list';
 
   // Load tools and bindings from localStorage on mount
   useEffect(() => {
     const loadedTools = loadToolsFromStorage();
-    const loadedBindings = loadBindingsFromStorage();
+    const rawBindings = loadRawBindingsFromStorage();
 
-    // Migrate tools from old structure (name -> internal_name)
     const migratedTools = loadedTools.map((t: any) => {
-      if (t.name && !t.internal_name) {
-        return {
-          ...t,
-          internal_name: t.name,
+      let tool = t;
+      if (tool.name && !tool.internal_name) {
+        tool = {
+          ...tool,
+          internal_name: tool.name,
           display_name: undefined,
           server_version: undefined,
         };
       }
-      return t;
+
+      const icons = buildParsedServerJsonIcons(tool.server_json);
+      if (icons?.length && !tool.parsed_server_json?.icons?.length) {
+        tool = {
+          ...tool,
+          parsed_server_json: {
+            ...tool.parsed_server_json,
+            icons,
+          },
+        };
+      }
+
+      return tool;
     });
 
-    // Save migrated tools if any were updated
+    const migratedBindings = migrateBindings(rawBindings, migratedTools);
+
     if (migratedTools.some((t: any, i: number) => t !== loadedTools[i])) {
       saveToolsToStorage(migratedTools);
-      setTools(migratedTools);
-    } else {
-      setTools(loadedTools);
     }
 
-    setTools(loadedTools);
-    setBindings(loadedBindings);
+    if (rawBindings.some((binding) => !binding.description)) {
+      saveBindingsToStorage(migratedBindings);
+    }
+
+    setTools(migratedTools);
+    setBindings(migratedBindings);
   }, []);
 
   // Save tools to localStorage whenever they change
@@ -148,14 +125,23 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
 
   const { RegisterToolModal, openModal: openRegisterToolModal } = useRegisterToolModal({
     experimentId,
-    onSuccess: ({ internalName, displayName, serverVersion, serverJson, parsedServerJson }) => {
+    onSuccess: ({
+      internalName,
+      displayName,
+      serverVersion,
+      serverJson,
+      parsedServerJson,
+      status,
+      source,
+      tags,
+      tools,
+      icons,
+    }) => {
       setTools((prevTools) => {
-        // Check if a tool with this internal_name already exists
         const existingToolIndex = prevTools.findIndex((tool) => tool.internal_name === internalName);
         const timestamp = Date.now();
 
         if (existingToolIndex >= 0) {
-          // Update existing tool - create new version
           const existingTool = prevTools[existingToolIndex];
           const currentVersion = parseInt(existingTool.latest_version || '1', 10);
           const newVersion = (currentVersion + 1).toString();
@@ -163,14 +149,18 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
           const newToolVersion: ToolVersion = {
             version: newVersion,
             server_json: serverJson || undefined,
-            status: 'draft',
+            status,
+            source,
+            tags,
+            tools,
             creation_timestamp: timestamp,
             last_updated_timestamp: timestamp,
           };
 
           const updatedTool: RegisteredTool = {
             ...existingTool,
-            display_name: displayName,
+            display_name: displayName ?? existingTool.display_name,
+            icons: icons ?? existingTool.icons,
             server_version: serverVersion,
             server_json: serverJson || existingTool.server_json,
             parsed_server_json: parsedServerJson,
@@ -179,34 +169,36 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             versions: [newToolVersion, ...(existingTool.versions || [])],
           };
 
-          // Move updated tool to the top of the list
           const newTools = [...prevTools];
           newTools.splice(existingToolIndex, 1);
           return [updatedTool, ...newTools];
-        } else {
-          // Add new tool with initial version
-          const initialVersion: ToolVersion = {
-            version: '1',
-            server_json: serverJson || undefined,
-            status: 'draft',
-            creation_timestamp: timestamp,
-            last_updated_timestamp: timestamp,
-          };
-
-          const newTool: RegisteredTool = {
-            internal_name: internalName,
-            display_name: displayName,
-            server_version: serverVersion,
-            server_json: serverJson || undefined,
-            parsed_server_json: parsedServerJson,
-            latest_version: '1',
-            last_updated_timestamp: timestamp,
-            tags: [],
-            aliases: [],
-            versions: [initialVersion],
-          };
-          return [newTool, ...prevTools];
         }
+
+        const initialVersion: ToolVersion = {
+          version: '1',
+          server_json: serverJson || undefined,
+          status,
+          source,
+          tags,
+          tools,
+          creation_timestamp: timestamp,
+          last_updated_timestamp: timestamp,
+        };
+
+        const newTool: RegisteredTool = {
+          internal_name: internalName,
+          display_name: displayName,
+          icons,
+          server_version: serverVersion,
+          server_json: serverJson || undefined,
+          parsed_server_json: parsedServerJson,
+          latest_version: '1',
+          last_updated_timestamp: timestamp,
+          tags: [],
+          aliases: [],
+          versions: [initialVersion],
+        };
+        return [newTool, ...prevTools];
       });
     },
   });
@@ -220,7 +212,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
     return tools.filter(
       (tool) =>
         tool.internal_name.toLowerCase().includes(lowerSearch) ||
-        (tool.display_name && tool.display_name.toLowerCase().includes(lowerSearch)) ||
+        getEffectiveDisplayName(tool).toLowerCase().includes(lowerSearch) ||
         (tool.description && tool.description.toLowerCase().includes(lowerSearch)),
     );
   }, [tools, searchFilter]);
@@ -235,6 +227,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
       (binding) =>
         binding.endpoint_url.toLowerCase().includes(lowerSearch) ||
         binding.server_name.toLowerCase().includes(lowerSearch) ||
+        (binding.description && binding.description.toLowerCase().includes(lowerSearch)) ||
         (binding.server_alias && binding.server_alias.toLowerCase().includes(lowerSearch)),
     );
   }, [bindings, searchFilter]);
@@ -242,8 +235,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
   const { CreateEndpointModal, openModal: openCreateEndpointModal } = useCreateEndpointModal({
     tools,
     onSuccess: () => {
-      // Reload bindings from storage
-      const loadedBindings = loadBindingsFromStorage();
+      const loadedBindings = loadBindingsFromStorage(tools);
       setBindings(loadedBindings);
     },
   });
@@ -251,11 +243,14 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
   const { EditEndpointModal, openEditModal: openEditEndpointModal } = useEditEndpointModal({
     tools,
     onSuccess: () => {
-      // Reload bindings from storage
-      const loadedBindings = loadBindingsFromStorage();
+      const loadedBindings = loadBindingsFromStorage(tools);
       setBindings(loadedBindings);
     },
   });
+
+  const handleViewServers = () => {
+    setTabMode(TabMode.SERVERS);
+  };
 
   const handleCreateBinding = () => {
     openCreateEndpointModal();
@@ -315,11 +310,11 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             value={tabMode}
             onChange={(e) => setTabMode(e.target.value as TabMode)}
           >
-            <SegmentedControlButton value={TabMode.SERVERS}>
-              <FormattedMessage defaultMessage="Servers" description="Tab label for MCP servers view" />
-            </SegmentedControlButton>
             <SegmentedControlButton value={TabMode.ACCESS_BINDINGS}>
               <FormattedMessage defaultMessage="Access Bindings" description="Tab label for MCP access bindings view" />
+            </SegmentedControlButton>
+            <SegmentedControlButton value={TabMode.SERVERS}>
+              <FormattedMessage defaultMessage="Servers" description="Tab label for MCP servers view" />
             </SegmentedControlButton>
           </SegmentedControlGroup>
         </div>
@@ -375,6 +370,7 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
         ) : serverViewMode === ServerViewMode.TABLE ? (
           <AccessBindingsTable
             bindings={filteredBindings}
+            hasServers={tools.length > 0}
             hasNextPage={hasNextPage}
             hasPreviousPage={hasPreviousPage}
             isLoading={isLoading}
@@ -382,6 +378,8 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             onNextPage={handleNextPage}
             onPreviousPage={handlePreviousPage}
             onCreateBinding={handleCreateBinding}
+            onCreateServer={openRegisterToolModal}
+            onViewServers={handleViewServers}
             onEditBinding={handleEditBinding}
             componentId={componentId}
           />
@@ -391,7 +389,9 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
             tools={tools}
             isLoading={isLoading}
             isFiltered={Boolean(searchFilter)}
-            onEditBinding={handleEditBinding}
+            onCreateServer={openRegisterToolModal}
+            onCreateBinding={handleCreateBinding}
+            onViewServers={handleViewServers}
             componentId={componentId}
           />
         )}

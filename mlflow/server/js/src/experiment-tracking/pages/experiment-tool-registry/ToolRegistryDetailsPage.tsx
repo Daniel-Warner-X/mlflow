@@ -21,7 +21,7 @@ import Routes from '../../routes';
 import type { RegisteredTool, ToolVersion } from './types';
 import Utils from '../../../common/utils/Utils';
 import { ExperimentPageTabName } from '../../constants';
-import { useRegisterToolModal } from './hooks/useRegisterToolModal';
+import { RegisterToolModalMode, useRegisterToolModal } from './hooks/useRegisterToolModal';
 import { ToolVersionsTable } from './components/ToolVersionsTable';
 import { ToolContentPreview } from './components/ToolContentPreview';
 import { ToolContentCompare } from './components/ToolContentCompare';
@@ -31,6 +31,7 @@ import { DirectAccessBindingsList } from './components/DirectAccessBindingsList'
 import { useEditEndpointModal } from './hooks/useEditEndpointModal';
 import { useUpdateVersionStatusModal } from './hooks/useUpdateVersionStatusModal';
 import { useToolDetailsPageViewState, ToolVersionsTableMode } from './hooks/useToolDetailsPageViewState';
+import { getEffectiveDisplayName } from './utils/accessBindingUtils';
 
 const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
 
@@ -175,55 +176,6 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
     setTool(foundTool || null);
   };
 
-  const handleUpdateTool = (updatedTool: RegisteredTool) => {
-    const tools = loadToolsFromStorage();
-    const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
-
-    if (toolIndex >= 0) {
-      tools[toolIndex] = updatedTool;
-      saveToolsToStorage(tools);
-      setTool(updatedTool);
-    }
-  };
-
-  const { RegisterToolModal, openModal: openCreateVersionModal } = useRegisterToolModal({
-    experimentId,
-    onSuccess: ({ internalName, displayName, serverVersion, serverJson, parsedServerJson }) => {
-      const tools = loadToolsFromStorage();
-      const toolIndex = tools.findIndex((t) => t.internal_name === decodedToolName);
-
-      if (toolIndex >= 0) {
-        const existingTool = tools[toolIndex];
-        const currentVersion = parseInt(existingTool.latest_version || '1', 10);
-        const newVersion = (currentVersion + 1).toString();
-        const timestamp = Date.now();
-
-        const newToolVersion: ToolVersion = {
-          version: newVersion,
-          server_json: serverJson || undefined,
-          status: 'draft',
-          creation_timestamp: timestamp,
-          last_updated_timestamp: timestamp,
-        };
-
-        const updatedTool: RegisteredTool = {
-          ...existingTool,
-          display_name: displayName,
-          server_version: serverVersion,
-          parsed_server_json: parsedServerJson,
-          latest_version: newVersion,
-          last_updated_timestamp: timestamp,
-          versions: [newToolVersion, ...(existingTool.versions || [])],
-        };
-
-        tools[toolIndex] = updatedTool;
-        saveToolsToStorage(tools);
-        setTool(updatedTool);
-        setSelectedVersion(newVersion);
-      }
-    },
-  });
-
   const handleDelete = () => {
     if (!tool) return;
 
@@ -274,6 +226,67 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
 
   const selectedVersionEntity = tool?.versions?.find((v) => v.version === selectedVersion);
   const comparedVersionEntity = tool?.versions?.find((v) => v.version === viewState.comparedVersion);
+
+  const { RegisterToolModal, openModal: openCreateVersionModal } = useRegisterToolModal({
+    experimentId,
+    mode: RegisterToolModalMode.CreateServerVersion,
+    registeredTool: tool ?? undefined,
+    sourceVersion: selectedVersionEntity,
+    modalTitle: (
+      <FormattedMessage
+        defaultMessage="Create MCP server version"
+        description="A header for the create MCP server version modal in the MCP registry UI"
+      />
+    ),
+    onSuccess: ({
+      displayName,
+      serverVersion,
+      serverJson,
+      parsedServerJson,
+      status,
+      source,
+      tags,
+      tools: versionTools,
+      icons,
+    }) => {
+      const storedTools = loadToolsFromStorage();
+      const toolIndex = storedTools.findIndex((t) => t.internal_name === decodedToolName);
+
+      if (toolIndex >= 0) {
+        const existingTool = storedTools[toolIndex];
+        const currentVersion = parseInt(existingTool.latest_version || '1', 10);
+        const newVersion = (currentVersion + 1).toString();
+        const timestamp = Date.now();
+
+        const newToolVersion: ToolVersion = {
+          version: newVersion,
+          server_json: serverJson || undefined,
+          status,
+          source,
+          tags,
+          tools: versionTools,
+          creation_timestamp: timestamp,
+          last_updated_timestamp: timestamp,
+        };
+
+        const updatedTool: RegisteredTool = {
+          ...existingTool,
+          display_name: displayName ?? existingTool.display_name,
+          icons: icons ?? existingTool.icons,
+          server_version: serverVersion,
+          parsed_server_json: parsedServerJson,
+          latest_version: newVersion,
+          last_updated_timestamp: timestamp,
+          versions: [newToolVersion, ...(existingTool.versions || [])],
+        };
+
+        storedTools[toolIndex] = updatedTool;
+        saveToolsToStorage(storedTools);
+        setTool(updatedTool);
+        setSelectedVersion(newVersion);
+      }
+    },
+  });
 
   const aliasesByVersion = useMemo(() => {
     const result: Record<string, string[]> = {};
@@ -445,7 +458,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
       <Spacer shrinks={false} />
       <Header
         breadcrumbs={breadcrumbs}
-        title={tool.display_name || tool.internal_name}
+        title={getEffectiveDisplayName(tool)}
         buttons={
           <>
             <DropdownMenu.Root>
@@ -538,7 +551,6 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
                   aliasesByVersion={aliasesByVersion}
                   registeredTool={tool}
                   onUpdatedContent={refetch}
-                  onUpdateTool={handleUpdateTool}
                   showEditAliasesModal={showEditAliasesModal}
                   showEditToolVersionMetadataModal={showEditToolVersionMetadataModal}
                   showUpdateStatusModal={(version) => openUpdateVersionStatusModal(decodedToolName, version)}

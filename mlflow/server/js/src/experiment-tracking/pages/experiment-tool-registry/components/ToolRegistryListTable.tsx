@@ -21,6 +21,7 @@ import type { RegisteredTool, ToolsTableMetadata } from '../types';
 import Utils from '../../../../common/utils/Utils';
 import { isEmpty } from 'lodash';
 import { ToolRegistryListTableNameCell } from './ToolRegistryListTableNameCell';
+import { getEffectiveDisplayName } from '../utils/accessBindingUtils';
 
 type ToolsTableColumnDef = ColumnDef<RegisteredTool>;
 
@@ -33,7 +34,7 @@ const useToolsTableColumns = () => {
           defaultMessage: 'Name',
           description: 'Header for the name column in the tool registry table',
         }),
-        accessorFn: (row) => (row.use_display_name_in_list && row.display_name) ? row.display_name : row.internal_name,
+        accessorFn: (row) => getEffectiveDisplayName(row),
         id: 'name',
         cell: ToolRegistryListTableNameCell,
       },

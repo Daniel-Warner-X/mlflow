@@ -14,6 +14,7 @@ export enum PageId {
   promptDetailsPage = 'mlflow.prompts.details',
   toolsPage = 'mlflow.tools',
   toolDetailsPage = 'mlflow.tools.details',
+  accessBindingDetailsPage = 'mlflow.tools.access-binding.details',
   experimentPageTabbed = 'mlflow.experiment.details.tab',
   experimentLoggedModelDetailsPageTab = 'mlflow.logged-model.details.tab',
   experimentLoggedModelDetailsPage = 'mlflow.logged-model.details',
@@ -156,6 +157,9 @@ export class RoutePaths {
    */
   static get toolsPage() {
     return createMLflowRoutePath('/tools');
+  }
+  static get accessBindingDetailsPage() {
+    return createMLflowRoutePath('/tools/bindings/:bindingId');
   }
   static get toolDetailsPage() {
     return createMLflowRoutePath('/tools/:toolName');
@@ -377,6 +381,10 @@ class Routes {
 
   static getToolDetailsPageRoute(toolName: string) {
     return generatePath(RoutePaths.toolDetailsPage, { toolName });
+  }
+
+  static getAccessBindingDetailsPageRoute(bindingId: string) {
+    return generatePath(RoutePaths.accessBindingDetailsPage, { bindingId });
   }
 }
 

@@ -4,33 +4,14 @@ import {
   Modal,
   RHFControlledComponents,
   Spacer,
+  useDesignSystemTheme,
 } from '@databricks/design-system';
 import { useState, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { MCPAccessBinding, RegisteredTool } from '../types';
-
-const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
-
-const loadBindingsFromStorage = (): MCPAccessBinding[] => {
-  try {
-    const stored = localStorage.getItem(BINDINGS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to load bindings from localStorage:', error);
-  }
-  return [];
-};
-
-const saveBindingsToStorage = (bindings: MCPAccessBinding[]) => {
-  try {
-    localStorage.setItem(BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
-  } catch (error) {
-    console.error('Failed to save bindings to localStorage:', error);
-  }
-};
+import { loadBindingsFromStorage, saveBindingsToStorage } from '../utils/registryStorage';
+import { parseLabelsInput } from '../utils/accessBindingUtils';
 
 export const useCreateEndpointModal = ({
   tools,
@@ -43,16 +24,21 @@ export const useCreateEndpointModal = ({
 }) => {
   const [open, setOpen] = useState(false);
   const intl = useIntl();
+  const { theme } = useDesignSystemTheme();
 
   const form = useForm<{
     endpoint_url: string;
     server_name: string;
+    description: string;
+    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }>({
     defaultValues: {
       endpoint_url: '',
       server_name: preselectedServer || '',
+      description: '',
+      labels: '',
       version_or_alias: '',
       transport_type: 'streamable-http',
     },
@@ -61,7 +47,6 @@ export const useCreateEndpointModal = ({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  // Get selected server's versions and aliases
   const selectedServerName = form.watch('server_name');
   const selectedServer = useMemo(
     () => tools.find((t) => t.internal_name === selectedServerName),
@@ -72,7 +57,6 @@ export const useCreateEndpointModal = ({
     if (!selectedServer) return [];
     const options: Array<{ value: string; label: string }> = [];
 
-    // Add versions (only active and deprecated per RFC 0004 - draft/deleted are not surfaced)
     if (selectedServer.versions) {
       selectedServer.versions.forEach((v) => {
         const status = v.status || 'draft';
@@ -88,7 +72,6 @@ export const useCreateEndpointModal = ({
       });
     }
 
-    // Add aliases
     if (selectedServer.aliases) {
       selectedServer.aliases.forEach((a) => {
         options.push({
@@ -104,6 +87,8 @@ export const useCreateEndpointModal = ({
   const handleSubmit = async (values: {
     endpoint_url: string;
     server_name: string;
+    description: string;
+    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }) => {
@@ -111,7 +96,6 @@ export const useCreateEndpointModal = ({
     setError(null);
 
     try {
-      // Parse version_or_alias to determine type
       let server_version: string | undefined;
       let server_alias: string | undefined;
 
@@ -123,26 +107,24 @@ export const useCreateEndpointModal = ({
         }
       }
 
-      // Create new binding - ensure mutually exclusive version/alias constraint
-      // TODO: In production, workspace should come from global workspace context (mlflow.get_workspace())
       const newBinding: MCPAccessBinding = {
         binding_id: `binding-${Date.now()}`,
         server_name: values.server_name,
         endpoint_url: values.endpoint_url,
+        description: values.description.trim() || undefined,
+        labels: parseLabelsInput(values.labels),
         transport_type: values.transport_type,
         server_version,
         server_alias,
-        workspace: 'default', // Hardcoded for prototype - would come from workspace context in production
-        created_by: 'current_user', // TODO: Get from auth context
-        last_updated_by: 'current_user', // TODO: Get from auth context
+        workspace: 'default',
+        created_by: 'current_user',
+        last_updated_by: 'current_user',
         creation_timestamp: Date.now(),
         last_updated_timestamp: Date.now(),
       };
 
-      // Save to localStorage
-      const existingBindings = loadBindingsFromStorage();
-      const updatedBindings = [newBinding, ...existingBindings];
-      saveBindingsToStorage(updatedBindings);
+      const existingBindings = loadBindingsFromStorage(tools);
+      saveBindingsToStorage([newBinding, ...existingBindings]);
 
       onSuccess?.();
       setOpen(false);
@@ -200,6 +182,7 @@ export const useCreateEndpointModal = ({
 
         <FormUI.Label htmlFor="mlflow.access-binding.create.server">
           <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
+          <span css={{ color: theme.colors.textValidationDanger }}> *</span>
         </FormUI.Label>
         <RHFControlledComponents.Select
           control={form.control}
@@ -229,6 +212,7 @@ export const useCreateEndpointModal = ({
 
         <FormUI.Label htmlFor="mlflow.access-binding.create.endpoint_url">
           <FormattedMessage defaultMessage="Endpoint URL:" description="Label for endpoint URL field" />
+          <span css={{ color: theme.colors.textValidationDanger }}> *</span>
         </FormUI.Label>
         <RHFControlledComponents.Input
           control={form.control}
@@ -262,8 +246,39 @@ export const useCreateEndpointModal = ({
         )}
         <Spacer />
 
+        <FormUI.Label htmlFor="mlflow.access-binding.create.description">
+          <FormattedMessage defaultMessage="Description:" description="Label for access binding description field" />
+        </FormUI.Label>
+        <RHFControlledComponents.TextArea
+          control={form.control}
+          id="mlflow.access-binding.create.description"
+          componentId="mlflow.access-binding.create.description"
+          name="description"
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder={intl.formatMessage({
+            defaultMessage: 'Describe this deployment for other users',
+            description: 'Placeholder for access binding description',
+          })}
+        />
+        <Spacer />
+
+        <FormUI.Label htmlFor="mlflow.access-binding.create.labels">
+          <FormattedMessage defaultMessage="Labels:" description="Label for access binding labels field" />
+        </FormUI.Label>
+        <RHFControlledComponents.Input
+          control={form.control}
+          id="mlflow.access-binding.create.labels"
+          componentId="mlflow.access-binding.create.labels"
+          name="labels"
+          placeholder={intl.formatMessage({
+            defaultMessage: 'production, us-east, team-alpha',
+            description: 'Placeholder for comma-separated access binding labels',
+          })}
+        />
+        <Spacer />
+
         <FormUI.Label htmlFor="mlflow.access-binding.create.version_or_alias">
-          <FormattedMessage defaultMessage="Version/Alias (optional):" description="Label for version/alias selection" />
+          <FormattedMessage defaultMessage="Version/Alias:" description="Label for version/alias selection" />
         </FormUI.Label>
         <RHFControlledComponents.Select
           control={form.control}
@@ -280,6 +295,7 @@ export const useCreateEndpointModal = ({
 
         <FormUI.Label htmlFor="mlflow.access-binding.create.transport_type">
           <FormattedMessage defaultMessage="Transport Type:" description="Label for transport type selection" />
+          <span css={{ color: theme.colors.textValidationDanger }}> *</span>
         </FormUI.Label>
         <RHFControlledComponents.Select
           control={form.control}
@@ -300,6 +316,8 @@ export const useCreateEndpointModal = ({
     form.reset({
       endpoint_url: '',
       server_name: preselectedServer || '',
+      description: '',
+      labels: '',
       version_or_alias: '',
       transport_type: 'streamable-http',
     });

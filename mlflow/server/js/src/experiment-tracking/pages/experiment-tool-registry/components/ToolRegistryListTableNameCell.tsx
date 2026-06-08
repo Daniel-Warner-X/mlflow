@@ -22,7 +22,7 @@ export const ToolRegistryListTableNameCell: ColumnDef<RegisteredTool>['cell'] = 
   }
   return (
     <div css={{ display: 'flex', alignItems: 'center', gap: theme.spacing.sm }}>
-      <ToolIcon parsedServerJson={original.parsed_server_json} size={20} />
+      <ToolIcon icons={original.icons} parsedServerJson={original.parsed_server_json} serverJson={original.server_json} size={20} />
       <Link
         componentId="mlflow.tool-registry.list.tool_name_link"
         to={Routes.getToolDetailsPageRoute(encodeURIComponent(original.internal_name))}

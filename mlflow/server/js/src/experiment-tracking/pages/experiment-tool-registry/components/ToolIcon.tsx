@@ -1,5 +1,11 @@
 import { useDesignSystemTheme } from '@databricks/design-system';
-import type { ParsedServerJson } from '../types';
+import { useState } from 'react';
+import type { ParsedServerJson, ServerIcon } from '../types';
+import { getServerIconSrc } from '../utils/serverIconUtils';
+
+// Approximates theme blue500 for raster/data-uri SVG icons via CSS filter.
+const DATA_URI_ICON_FILTER =
+  'brightness(0) saturate(100%) invert(36%) sepia(93%) saturate(1415%) hue-rotate(194deg) brightness(96%) contrast(101%)';
 
 /**
  * Server Path Icon - represents MCP servers/connections
@@ -11,7 +17,7 @@ const ServerPathIcon = ({ size, color }: { size: number; color: string }) => (
     viewBox="0 0 24 24"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
-    css={{ flexShrink: 0 }}
+    css={{ flexShrink: 0, display: 'block' }}
   >
     <path
       fillRule="evenodd"
@@ -30,35 +36,69 @@ const ServerPathIcon = ({ size, color }: { size: number; color: string }) => (
   </svg>
 );
 
+const toRenderableIconSrc = (src: string): string => {
+  if (!src.startsWith('data:image/svg+xml,')) {
+    return src;
+  }
+
+  try {
+    const payload = src.slice(src.indexOf(',') + 1);
+    const svgMarkup = decodeURIComponent(payload);
+    return `data:image/svg+xml;base64,${btoa(svgMarkup)}`;
+  } catch {
+    return src;
+  }
+};
+
+const CustomServerIcon = ({ src, size, color }: { src: string; size: number; color: string }) => {
+  const [failed, setFailed] = useState(false);
+  const renderableSrc = toRenderableIconSrc(src);
+
+  if (failed) {
+    return <ServerPathIcon size={size} color={color} />;
+  }
+
+  return (
+    <img
+      src={renderableSrc}
+      alt=""
+      width={size}
+      height={size}
+      onError={() => setFailed(true)}
+      css={{
+        display: 'block',
+        flexShrink: 0,
+        objectFit: 'contain',
+        filter: src.startsWith('data:image/svg+xml') ? DATA_URI_ICON_FILTER : undefined,
+      }}
+    />
+  );
+};
+
 /**
  * Displays the icon for an MCP server, using the first icon from the server.json
  * or falling back to a default server path icon if none is provided.
  */
 export const ToolIcon = ({
+  icons,
   parsedServerJson,
+  serverJson,
   size = 24,
+  color,
 }: {
+  icons?: ServerIcon[];
   parsedServerJson?: ParsedServerJson;
+  serverJson?: string;
   size?: number;
+  color?: string;
 }) => {
   const { theme } = useDesignSystemTheme();
-  const icon = parsedServerJson?.icons?.[0];
+  const iconColor = color ?? theme.colors.blue500;
+  const iconSrc = getServerIconSrc(icons, parsedServerJson, serverJson);
 
-  if (icon?.src) {
-    return (
-      <img
-        src={icon.src}
-        alt="Server icon"
-        css={{
-          width: size,
-          height: size,
-          objectFit: 'contain',
-          borderRadius: theme.borders.borderRadiusMd,
-        }}
-      />
-    );
+  if (iconSrc) {
+    return <CustomServerIcon src={iconSrc} size={size} color={iconColor} />;
   }
 
-  // Fallback to default server path icon
-  return <ServerPathIcon size={size} color={theme.colors.textSecondary} />;
+  return <ServerPathIcon size={size} color={iconColor} />;
 };

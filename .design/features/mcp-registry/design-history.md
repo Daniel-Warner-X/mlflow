@@ -4,6 +4,12 @@ This file contains a chronological record of key design updates and decisions fo
 
 ---
 
+## 2026-06-08
+
+### [Update] Added access binding details page
+- Clickable binding cards and table rows navigate to a connect-focused detail page
+- Page surfaces mcp.json snippet, connection details, and resolved server version
+
 ## 2026-05-18
 
 ### [Decision] Internal name and display name architecture

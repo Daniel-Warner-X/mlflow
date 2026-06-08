@@ -9,28 +9,8 @@ import { useState, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { MCPAccessBinding, RegisteredTool } from '../types';
-
-const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
-
-const loadBindingsFromStorage = (): MCPAccessBinding[] => {
-  try {
-    const stored = localStorage.getItem(BINDINGS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to load bindings from localStorage:', error);
-  }
-  return [];
-};
-
-const saveBindingsToStorage = (bindings: MCPAccessBinding[]) => {
-  try {
-    localStorage.setItem(BINDINGS_STORAGE_KEY, JSON.stringify(bindings));
-  } catch (error) {
-    console.error('Failed to save bindings to localStorage:', error);
-  }
-};
+import { loadBindingsFromStorage, saveBindingsToStorage } from '../utils/registryStorage';
+import { formatLabelsForInput, parseLabelsInput } from '../utils/accessBindingUtils';
 
 export const useEditEndpointModal = ({
   tools,
@@ -46,12 +26,16 @@ export const useEditEndpointModal = ({
   const form = useForm<{
     endpoint_url: string;
     server_name: string;
+    description: string;
+    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }>({
     defaultValues: {
       endpoint_url: '',
       server_name: '',
+      description: '',
+      labels: '',
       version_or_alias: '',
       transport_type: 'streamable-http',
     },
@@ -103,6 +87,8 @@ export const useEditEndpointModal = ({
   const handleSubmit = async (values: {
     endpoint_url: string;
     server_name: string;
+    description: string;
+    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }) => {
@@ -130,15 +116,16 @@ export const useEditEndpointModal = ({
         ...editingBinding,
         server_name: values.server_name,
         endpoint_url: values.endpoint_url,
+        description: values.description.trim() || undefined,
+        labels: parseLabelsInput(values.labels),
         transport_type: values.transport_type,
         server_version,
         server_alias,
-        last_updated_by: 'current_user', // TODO: Get from auth context
+        last_updated_by: 'current_user',
         last_updated_timestamp: Date.now(),
       };
 
-      // Update in localStorage
-      const existingBindings = loadBindingsFromStorage();
+      const existingBindings = loadBindingsFromStorage(tools);
       const updatedBindings = existingBindings.map((b) =>
         b.binding_id === editingBinding.binding_id ? updatedBinding : b,
       );
@@ -266,6 +253,37 @@ export const useEditEndpointModal = ({
         )}
         <Spacer />
 
+        <FormUI.Label htmlFor="mlflow.access-binding.edit.description">
+          <FormattedMessage defaultMessage="Description (optional):" description="Label for access binding description field" />
+        </FormUI.Label>
+        <RHFControlledComponents.TextArea
+          control={form.control}
+          id="mlflow.access-binding.edit.description"
+          componentId="mlflow.access-binding.edit.description"
+          name="description"
+          autoSize={{ minRows: 2, maxRows: 4 }}
+          placeholder={intl.formatMessage({
+            defaultMessage: 'Describe this deployment for other users',
+            description: 'Placeholder for access binding description',
+          })}
+        />
+        <Spacer />
+
+        <FormUI.Label htmlFor="mlflow.access-binding.edit.labels">
+          <FormattedMessage defaultMessage="Labels (optional):" description="Label for access binding labels field" />
+        </FormUI.Label>
+        <RHFControlledComponents.Input
+          control={form.control}
+          id="mlflow.access-binding.edit.labels"
+          componentId="mlflow.access-binding.edit.labels"
+          name="labels"
+          placeholder={intl.formatMessage({
+            defaultMessage: 'production, us-east, team-alpha',
+            description: 'Placeholder for comma-separated access binding labels',
+          })}
+        />
+        <Spacer />
+
         <FormUI.Label htmlFor="mlflow.access-binding.edit.version_or_alias">
           <FormattedMessage defaultMessage="Version/Alias (optional):" description="Label for version/alias selection" />
         </FormUI.Label>
@@ -314,6 +332,8 @@ export const useEditEndpointModal = ({
     form.reset({
       endpoint_url: binding.endpoint_url,
       server_name: binding.server_name,
+      description: binding.description || '',
+      labels: formatLabelsForInput(binding.labels),
       version_or_alias: versionOrAlias,
       transport_type: binding.transport_type,
     });
