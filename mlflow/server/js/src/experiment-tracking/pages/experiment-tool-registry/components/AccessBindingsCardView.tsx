@@ -1,10 +1,10 @@
 import { Typography, useDesignSystemTheme, Empty, SearchIcon, Button, PlusIcon, ConnectIcon } from '@databricks/design-system';
-import { FormattedMessage, useIntl } from 'react-intl';
+import { FormattedMessage } from 'react-intl';
 import type { MCPAccessBinding, RegisteredTool } from '../types';
-import Utils from '../../../../common/utils/Utils';
 import { Link } from '../../../../common/utils/RoutingUtils';
 import Routes from '../../../routes';
 import { getBindingVersionLabel, getEffectiveDisplayName } from '../utils/accessBindingUtils';
+import { AccessBindingTag } from './AccessBindingTag';
 
 interface AccessBindingsCardViewProps {
   bindings: MCPAccessBinding[];
@@ -28,7 +28,6 @@ export const AccessBindingsCardView = ({
   onViewServers,
 }: AccessBindingsCardViewProps) => {
   const { theme } = useDesignSystemTheme();
-  const intl = useIntl();
   const hasServers = tools.length > 0;
 
   if (!isLoading && bindings.length === 0) {
@@ -218,36 +217,15 @@ export const AccessBindingsCardView = ({
                   {getBindingVersionLabel(binding)}
                 </Typography.Text>
               </div>
-              {(binding.description || binding.last_updated_timestamp) && (
-                <div css={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.sm, alignItems: 'baseline' }}>
-                  {binding.description && (
-                    <Typography.Text color="secondary" size="sm">
-                      {binding.description}
-                    </Typography.Text>
-                  )}
-                  {binding.last_updated_timestamp && (
-                    <Typography.Text color="secondary" size="sm">
-                      {Utils.formatTimestamp(binding.last_updated_timestamp, intl)}
-                    </Typography.Text>
-                  )}
-                </div>
+              {binding.description && (
+                <Typography.Text color="secondary" size="sm">
+                  {binding.description}
+                </Typography.Text>
               )}
-              {binding.labels && binding.labels.length > 0 && (
+              {binding.tags && binding.tags.length > 0 && (
                 <div css={{ display: 'flex', flexWrap: 'wrap', gap: theme.spacing.xs }}>
-                  {binding.labels.map((label) => (
-                    <span
-                      key={label}
-                      css={{
-                        borderRadius: theme.borders.borderRadiusSm,
-                        background: theme.colors.actionDefaultBackgroundHover,
-                        color: theme.colors.blue500,
-                        padding: `2px ${theme.spacing.xs}px`,
-                        fontSize: theme.typography.fontSizeSm,
-                        lineHeight: theme.typography.lineHeightSm,
-                      }}
-                    >
-                      {label}
-                    </span>
+                  {binding.tags.map((tag) => (
+                    <AccessBindingTag key={tag.key} tag={tag} />
                   ))}
                 </div>
               )}

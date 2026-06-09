@@ -4,30 +4,34 @@ import {
   Modal,
   RHFControlledComponents,
   Spacer,
+  Typography,
+  useDesignSystemTheme,
 } from '@databricks/design-system';
 import { useState, useMemo } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { MCPAccessBinding, RegisteredTool } from '../types';
 import { loadBindingsFromStorage, saveBindingsToStorage } from '../utils/registryStorage';
-import { formatLabelsForInput, parseLabelsInput } from '../utils/accessBindingUtils';
+import { getEffectiveDisplayName } from '../utils/accessBindingUtils';
 
 export const useEditEndpointModal = ({
   tools,
+  lockServer = false,
   onSuccess,
 }: {
   tools: RegisteredTool[];
+  lockServer?: boolean;
   onSuccess?: () => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [editingBinding, setEditingBinding] = useState<MCPAccessBinding | null>(null);
   const intl = useIntl();
+  const { theme } = useDesignSystemTheme();
 
   const form = useForm<{
     endpoint_url: string;
     server_name: string;
     description: string;
-    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }>({
@@ -35,7 +39,6 @@ export const useEditEndpointModal = ({
       endpoint_url: '',
       server_name: '',
       description: '',
-      labels: '',
       version_or_alias: '',
       transport_type: 'streamable-http',
     },
@@ -88,7 +91,6 @@ export const useEditEndpointModal = ({
     endpoint_url: string;
     server_name: string;
     description: string;
-    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }) => {
@@ -114,10 +116,9 @@ export const useEditEndpointModal = ({
       // Workspace is preserved from the original binding (set during creation from workspace context)
       const updatedBinding: MCPAccessBinding = {
         ...editingBinding,
-        server_name: values.server_name,
+        server_name: lockServer ? editingBinding.server_name : values.server_name,
         endpoint_url: values.endpoint_url,
         description: values.description.trim() || undefined,
-        labels: parseLabelsInput(values.labels),
         transport_type: values.transport_type,
         server_version,
         server_alias,
@@ -150,6 +151,14 @@ export const useEditEndpointModal = ({
       })),
     [tools],
   );
+
+  const lockedServerDisplayName = useMemo(() => {
+    if (!lockServer || !editingBinding) {
+      return editingBinding?.server_name;
+    }
+    const server = tools.find((tool) => tool.internal_name === editingBinding.server_name);
+    return server ? getEffectiveDisplayName(server) : editingBinding.server_name;
+  }, [lockServer, editingBinding, tools]);
 
   const modalElement = (
     <FormProvider {...form}>
@@ -189,32 +198,43 @@ export const useEditEndpointModal = ({
           </>
         )}
 
-        <FormUI.Label htmlFor="mlflow.access-binding.edit.server">
-          <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
-        </FormUI.Label>
-        <RHFControlledComponents.Select
-          control={form.control}
-          id="mlflow.access-binding.edit.server"
-          componentId="mlflow.access-binding.edit.server"
-          name="server_name"
-          options={serverOptions}
-          rules={{
-            required: {
-              value: true,
-              message: intl.formatMessage({
-                defaultMessage: 'MCP Server is required',
-                description: 'Validation error for server selection',
-              }),
-            },
-          }}
-          placeholder={intl.formatMessage({
-            defaultMessage: 'Select an MCP server',
-            description: 'Placeholder for server selection',
-          })}
-          validationState={form.formState.errors.server_name ? 'error' : undefined}
-        />
-        {form.formState.errors.server_name && (
-          <FormUI.Message type="error" message={form.formState.errors.server_name.message} />
+        {lockServer ? (
+          <div css={{ display: 'flex', alignItems: 'baseline', gap: theme.spacing.xs }}>
+            <FormUI.Label htmlFor="mlflow.access-binding.edit.server" css={{ marginBottom: 0 }}>
+              <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
+            </FormUI.Label>
+            <Typography.Text id="mlflow.access-binding.edit.server">{lockedServerDisplayName}</Typography.Text>
+          </div>
+        ) : (
+          <>
+            <FormUI.Label htmlFor="mlflow.access-binding.edit.server">
+              <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
+            </FormUI.Label>
+            <RHFControlledComponents.Select
+              control={form.control}
+              id="mlflow.access-binding.edit.server"
+              componentId="mlflow.access-binding.edit.server"
+              name="server_name"
+              options={serverOptions}
+              rules={{
+                required: {
+                  value: true,
+                  message: intl.formatMessage({
+                    defaultMessage: 'MCP Server is required',
+                    description: 'Validation error for server selection',
+                  }),
+                },
+              }}
+              placeholder={intl.formatMessage({
+                defaultMessage: 'Select an MCP server',
+                description: 'Placeholder for server selection',
+              })}
+              validationState={form.formState.errors.server_name ? 'error' : undefined}
+            />
+            {form.formState.errors.server_name && (
+              <FormUI.Message type="error" message={form.formState.errors.server_name.message} />
+            )}
+          </>
         )}
         <Spacer />
 
@@ -269,21 +289,6 @@ export const useEditEndpointModal = ({
         />
         <Spacer />
 
-        <FormUI.Label htmlFor="mlflow.access-binding.edit.labels">
-          <FormattedMessage defaultMessage="Labels (optional):" description="Label for access binding labels field" />
-        </FormUI.Label>
-        <RHFControlledComponents.Input
-          control={form.control}
-          id="mlflow.access-binding.edit.labels"
-          componentId="mlflow.access-binding.edit.labels"
-          name="labels"
-          placeholder={intl.formatMessage({
-            defaultMessage: 'production, us-east, team-alpha',
-            description: 'Placeholder for comma-separated access binding labels',
-          })}
-        />
-        <Spacer />
-
         <FormUI.Label htmlFor="mlflow.access-binding.edit.version_or_alias">
           <FormattedMessage defaultMessage="Version/Alias (optional):" description="Label for version/alias selection" />
         </FormUI.Label>
@@ -333,7 +338,6 @@ export const useEditEndpointModal = ({
       endpoint_url: binding.endpoint_url,
       server_name: binding.server_name,
       description: binding.description || '',
-      labels: formatLabelsForInput(binding.labels),
       version_or_alias: versionOrAlias,
       transport_type: binding.transport_type,
     });

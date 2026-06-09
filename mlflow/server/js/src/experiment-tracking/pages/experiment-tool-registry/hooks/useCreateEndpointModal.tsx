@@ -4,6 +4,7 @@ import {
   Modal,
   RHFControlledComponents,
   Spacer,
+  Typography,
   useDesignSystemTheme,
 } from '@databricks/design-system';
 import { useState, useMemo } from 'react';
@@ -11,15 +12,17 @@ import { useForm, FormProvider } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
 import type { MCPAccessBinding, RegisteredTool } from '../types';
 import { loadBindingsFromStorage, saveBindingsToStorage } from '../utils/registryStorage';
-import { parseLabelsInput } from '../utils/accessBindingUtils';
+import { getEffectiveDisplayName } from '../utils/accessBindingUtils';
 
 export const useCreateEndpointModal = ({
   tools,
   preselectedServer,
+  lockServer = false,
   onSuccess,
 }: {
   tools: RegisteredTool[];
   preselectedServer?: string;
+  lockServer?: boolean;
   onSuccess?: () => void;
 }) => {
   const [open, setOpen] = useState(false);
@@ -30,7 +33,6 @@ export const useCreateEndpointModal = ({
     endpoint_url: string;
     server_name: string;
     description: string;
-    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }>({
@@ -38,7 +40,6 @@ export const useCreateEndpointModal = ({
       endpoint_url: '',
       server_name: preselectedServer || '',
       description: '',
-      labels: '',
       version_or_alias: '',
       transport_type: 'streamable-http',
     },
@@ -88,7 +89,6 @@ export const useCreateEndpointModal = ({
     endpoint_url: string;
     server_name: string;
     description: string;
-    labels: string;
     version_or_alias: string;
     transport_type: 'streamable-http' | 'sse';
   }) => {
@@ -112,7 +112,6 @@ export const useCreateEndpointModal = ({
         server_name: values.server_name,
         endpoint_url: values.endpoint_url,
         description: values.description.trim() || undefined,
-        labels: parseLabelsInput(values.labels),
         transport_type: values.transport_type,
         server_version,
         server_alias,
@@ -144,6 +143,14 @@ export const useCreateEndpointModal = ({
       })),
     [tools],
   );
+
+  const lockedServerDisplayName = useMemo(() => {
+    if (!lockServer || !preselectedServer) {
+      return preselectedServer;
+    }
+    const server = tools.find((tool) => tool.internal_name === preselectedServer);
+    return server ? getEffectiveDisplayName(server) : preselectedServer;
+  }, [lockServer, preselectedServer, tools]);
 
   const modalElement = (
     <FormProvider {...form}>
@@ -180,33 +187,44 @@ export const useCreateEndpointModal = ({
           </>
         )}
 
-        <FormUI.Label htmlFor="mlflow.access-binding.create.server">
-          <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
-          <span css={{ color: theme.colors.textValidationDanger }}> *</span>
-        </FormUI.Label>
-        <RHFControlledComponents.Select
-          control={form.control}
-          id="mlflow.access-binding.create.server"
-          componentId="mlflow.access-binding.create.server"
-          name="server_name"
-          options={serverOptions}
-          rules={{
-            required: {
-              value: true,
-              message: intl.formatMessage({
-                defaultMessage: 'MCP Server is required',
-                description: 'Validation error for server selection',
-              }),
-            },
-          }}
-          placeholder={intl.formatMessage({
-            defaultMessage: 'Select an MCP server',
-            description: 'Placeholder for server selection',
-          })}
-          validationState={form.formState.errors.server_name ? 'error' : undefined}
-        />
-        {form.formState.errors.server_name && (
-          <FormUI.Message type="error" message={form.formState.errors.server_name.message} />
+        {lockServer ? (
+          <div css={{ display: 'flex', alignItems: 'baseline', gap: theme.spacing.xs }}>
+            <FormUI.Label htmlFor="mlflow.access-binding.create.server" css={{ marginBottom: 0 }}>
+              <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
+            </FormUI.Label>
+            <Typography.Text id="mlflow.access-binding.create.server">{lockedServerDisplayName}</Typography.Text>
+          </div>
+        ) : (
+          <>
+            <FormUI.Label htmlFor="mlflow.access-binding.create.server">
+              <FormattedMessage defaultMessage="MCP Server:" description="Label for server selection" />
+              <span css={{ color: theme.colors.textValidationDanger }}> *</span>
+            </FormUI.Label>
+            <RHFControlledComponents.Select
+              control={form.control}
+              id="mlflow.access-binding.create.server"
+              componentId="mlflow.access-binding.create.server"
+              name="server_name"
+              options={serverOptions}
+              rules={{
+                required: {
+                  value: true,
+                  message: intl.formatMessage({
+                    defaultMessage: 'MCP Server is required',
+                    description: 'Validation error for server selection',
+                  }),
+                },
+              }}
+              placeholder={intl.formatMessage({
+                defaultMessage: 'Select an MCP server',
+                description: 'Placeholder for server selection',
+              })}
+              validationState={form.formState.errors.server_name ? 'error' : undefined}
+            />
+            {form.formState.errors.server_name && (
+              <FormUI.Message type="error" message={form.formState.errors.server_name.message} />
+            )}
+          </>
         )}
         <Spacer />
 
@@ -262,21 +280,6 @@ export const useCreateEndpointModal = ({
         />
         <Spacer />
 
-        <FormUI.Label htmlFor="mlflow.access-binding.create.labels">
-          <FormattedMessage defaultMessage="Labels:" description="Label for access binding labels field" />
-        </FormUI.Label>
-        <RHFControlledComponents.Input
-          control={form.control}
-          id="mlflow.access-binding.create.labels"
-          componentId="mlflow.access-binding.create.labels"
-          name="labels"
-          placeholder={intl.formatMessage({
-            defaultMessage: 'production, us-east, team-alpha',
-            description: 'Placeholder for comma-separated access binding labels',
-          })}
-        />
-        <Spacer />
-
         <FormUI.Label htmlFor="mlflow.access-binding.create.version_or_alias">
           <FormattedMessage defaultMessage="Version/Alias:" description="Label for version/alias selection" />
         </FormUI.Label>
@@ -317,7 +320,6 @@ export const useCreateEndpointModal = ({
       endpoint_url: '',
       server_name: preselectedServer || '',
       description: '',
-      labels: '',
       version_or_alias: '',
       transport_type: 'streamable-http',
     });

@@ -32,30 +32,7 @@ import { useEditEndpointModal } from './hooks/useEditEndpointModal';
 import { useUpdateVersionStatusModal } from './hooks/useUpdateVersionStatusModal';
 import { useToolDetailsPageViewState, ToolVersionsTableMode } from './hooks/useToolDetailsPageViewState';
 import { getEffectiveDisplayName } from './utils/accessBindingUtils';
-
-const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
-
-// Helper to load tools from localStorage
-const loadToolsFromStorage = (): RegisteredTool[] => {
-  try {
-    const stored = localStorage.getItem(TOOLS_STORAGE_KEY);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.error('Failed to load tools from localStorage:', error);
-  }
-  return [];
-};
-
-// Helper to save tools to localStorage
-const saveToolsToStorage = (tools: RegisteredTool[]) => {
-  try {
-    localStorage.setItem(TOOLS_STORAGE_KEY, JSON.stringify(tools));
-  } catch (error) {
-    console.error('Failed to save tools to localStorage:', error);
-  }
-};
+import { loadToolsFromStorage, saveToolsToStorage } from './utils/registryStorage';
 
 const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {}) => {
   const { toolName } = useParams<{ toolName: string }>();
@@ -375,6 +352,7 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
 
   const { EditEndpointModal, openEditModal: openEditEndpointModal } = useEditEndpointModal({
     tools: allTools,
+    lockServer: true,
     onSuccess: () => {
       // Trigger a re-render to refresh the bindings list
       refetch();

@@ -1,3 +1,5 @@
+import type { KeyValueEntity } from '../../../common/types';
+
 export interface ToolAlias {
   alias: string;
   version: string;
@@ -81,7 +83,7 @@ export interface MCPAccessBinding {
   server_name: string; // Parent MCPServer name (FK)
   endpoint_url: string; // Required approved direct endpoint URL
   description?: string; // Optional human-readable description of this deployment
-  labels?: string[]; // Optional display labels shown as badges on the binding card
+  tags?: KeyValueEntity[]; // Optional tags added after creation on the binding details page
   transport_type: 'streamable-http' | 'sse'; // Connection protocol
   server_version?: string; // Concrete version string (mutually exclusive with server_alias)
   server_alias?: string; // Alias name (mutually exclusive with server_version)

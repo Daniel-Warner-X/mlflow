@@ -1,5 +1,6 @@
 import type { MCPAccessBinding, RegisteredTool } from '../types';
 import { getEffectiveDisplayName } from './accessBindingUtils';
+import { getDemoRegistryTools } from './demoRegistrySeed';
 
 export const TOOLS_STORAGE_KEY = 'mlflow_registered_tools';
 export const BINDINGS_STORAGE_KEY = 'mlflow_access_bindings';
@@ -21,18 +22,36 @@ export const generateBindingDescription = (
   return `Approved endpoint for ${displayName}.`;
 };
 
+const migrateBindingFields = (binding: MCPAccessBinding & { labels?: string[] }): MCPAccessBinding => {
+  let migrated = binding;
+
+  if (!migrated.tags && migrated.labels?.length) {
+    const { labels, ...rest } = migrated;
+    migrated = {
+      ...rest,
+      tags: labels.map((label) => ({ key: label, value: '' })),
+    };
+  } else if (migrated.labels) {
+    const { labels, ...rest } = migrated;
+    migrated = rest;
+  }
+
+  return migrated;
+};
+
 export const migrateBindings = (
   bindings: MCPAccessBinding[],
   tools: RegisteredTool[] = [],
 ): MCPAccessBinding[] =>
-  bindings.map((binding) =>
-    binding.description
-      ? binding
+  bindings.map((binding) => {
+    const withTags = migrateBindingFields(binding as MCPAccessBinding & { labels?: string[] });
+    return withTags.description
+      ? withTags
       : {
-          ...binding,
-          description: generateBindingDescription(binding, tools),
-        },
-  );
+          ...withTags,
+          description: generateBindingDescription(withTags, tools),
+        };
+  });
 
 export const loadToolsFromStorage = (): RegisteredTool[] => {
   try {
@@ -43,7 +62,10 @@ export const loadToolsFromStorage = (): RegisteredTool[] => {
   } catch (error) {
     console.error('Failed to load tools from localStorage:', error);
   }
-  return [];
+
+  const demoTools = getDemoRegistryTools();
+  saveToolsToStorage(demoTools);
+  return demoTools;
 };
 
 export const saveToolsToStorage = (tools: RegisteredTool[]) => {

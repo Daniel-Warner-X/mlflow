@@ -32,6 +32,7 @@ export const DirectAccessBindingsList = ({
   const { CreateEndpointModal, openModal: openCreateEndpointModal } = useCreateEndpointModal({
     tools,
     preselectedServer: serverName,
+    lockServer: true,
     onSuccess: () => {
       // Reload bindings for this server
       const allBindings = loadBindingsFromStorage(tools);

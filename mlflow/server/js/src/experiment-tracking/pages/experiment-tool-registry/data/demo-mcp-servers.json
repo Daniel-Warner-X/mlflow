@@ -1,0 +1,280 @@
+[
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
+    "name": "ai.smithery/arjunkmrm-brave-search-mcp-server",
+    "description": "Search the web, images, videos, news, and local businesses with robust filters, freshness controls\u2026",
+    "repository": {
+      "url": "https://github.com/arjunkmrm/brave-search-mcp-server",
+      "source": "github"
+    },
+    "version": "2.0.25",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://server.smithery.ai/@arjunkmrm/brave-search-mcp-server/mcp",
+        "headers": [
+          {
+            "description": "Bearer token for Smithery authentication",
+            "value": "Bearer {smithery_api_key}",
+            "name": "Authorization"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+    "name": "ai.smithery/Hint-Services-obsidian-github-mcp",
+    "description": "Connect AI assistants to your GitHub-hosted Obsidian vault to seamlessly access, search, and analy\u2026",
+    "repository": {
+      "url": "https://github.com/Hint-Services/obsidian-github-mcp",
+      "source": "github"
+    },
+    "version": "0.4.0",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://server.smithery.ai/@Hint-Services/obsidian-github-mcp/mcp",
+        "headers": [
+          {
+            "description": "Bearer token for Smithery authentication",
+            "isRequired": true,
+            "value": "Bearer {smithery_api_key}",
+            "isSecret": true,
+            "name": "Authorization"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+    "name": "ai.smithery/smithery-notion",
+    "description": "A Notion workspace is a collaborative environment where teams can organize work, manage projects,\u2026",
+    "repository": {
+      "url": "https://github.com/smithery-ai/mcp-servers",
+      "source": "github",
+      "subfolder": "notion"
+    },
+    "version": "1.0.0",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://server.smithery.ai/@smithery/notion/mcp",
+        "headers": [
+          {
+            "description": "Bearer token for Smithery authentication",
+            "isRequired": true,
+            "value": "Bearer {smithery_api_key}",
+            "isSecret": true,
+            "name": "Authorization"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+    "name": "ai.waystation/postgres",
+    "description": "Connect to your PostgreSQL database to query data and schemas.",
+    "repository": {
+      "url": "https://github.com/waystation-ai/mcp",
+      "source": "github"
+    },
+    "version": "0.3.1",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://waystation.ai/postgres/mcp"
+      },
+      {
+        "type": "sse",
+        "url": "https://waystation.ai/postgres/mcp/sse"
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+    "name": "com.pulsemcp/remote-filesystem",
+    "description": "MCP server for remote filesystem operations on cloud storage (Google Cloud Storage).",
+    "repository": {
+      "url": "https://github.com/pulsemcp/mcp-servers",
+      "source": "github",
+      "subfolder": "experimental/remote-filesystem"
+    },
+    "version": "0.1.2",
+    "packages": [
+      {
+        "registryType": "npm",
+        "registryBaseUrl": "https://registry.npmjs.org",
+        "identifier": "remote-filesystem-mcp-server",
+        "version": "0.1.2",
+        "runtimeHint": "npx",
+        "transport": {
+          "type": "stdio"
+        },
+        "runtimeArguments": [
+          {
+            "value": "-y",
+            "type": "positional"
+          }
+        ],
+        "environmentVariables": [
+          {
+            "description": "Google Cloud Storage bucket name.",
+            "isRequired": true,
+            "name": "GCS_BUCKET"
+          },
+          {
+            "description": "Google Cloud project ID.",
+            "name": "GCS_PROJECT_ID"
+          },
+          {
+            "description": "Service account email for inline credentials.",
+            "name": "GCS_CLIENT_EMAIL"
+          },
+          {
+            "description": "Service account private key for inline credentials.",
+            "isSecret": true,
+            "name": "GCS_PRIVATE_KEY"
+          },
+          {
+            "description": "Path to Google Cloud service account key file.",
+            "name": "GOOGLE_APPLICATION_CREDENTIALS"
+          },
+          {
+            "description": "Root path prefix to restrict access within bucket.",
+            "name": "GCS_ROOT_PATH"
+          },
+          {
+            "description": "Make uploaded files publicly accessible.",
+            "default": "false",
+            "name": "GCS_MAKE_PUBLIC"
+          },
+          {
+            "description": "Comma-separated tool groups: readonly or readwrite.",
+            "name": "ENABLED_TOOLGROUPS"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+    "name": "ai.smithery/smithery-ai-slack",
+    "description": "Enable interaction with Slack workspaces. Supports subscribing to Slack events through Resources.",
+    "repository": {
+      "url": "https://github.com/smithery-ai/mcp-servers",
+      "source": "github",
+      "subfolder": "slack"
+    },
+    "version": "1.0.0",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://server.smithery.ai/@smithery-ai/slack/mcp",
+        "headers": [
+          {
+            "description": "Bearer token for Smithery authentication",
+            "isRequired": true,
+            "value": "Bearer {smithery_api_key}",
+            "isSecret": true,
+            "name": "Authorization"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
+    "name": "ai.smithery/arjunkmrm-fetch",
+    "description": "Fetch web pages and extract exactly the content you need. Select elements with CSS and retrieve co\u2026",
+    "repository": {
+      "url": "https://github.com/arjunkmrm/fetch",
+      "source": "github"
+    },
+    "version": "1.0.0",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://server.smithery.ai/@arjunkmrm/fetch/mcp",
+        "headers": [
+          {
+            "description": "Bearer token for Smithery authentication",
+            "value": "Bearer {smithery_api_key}",
+            "name": "Authorization"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+    "name": "io.github.CSOAI-ORG/docker-helper-ai-mcp",
+    "description": "docker-helper-ai-mcp MCP server by MEOK AI Labs",
+    "repository": {
+      "url": "https://github.com/CSOAI-ORG/docker-helper-ai-mcp",
+      "source": "github"
+    },
+    "version": "1.0.4",
+    "packages": [
+      {
+        "registryType": "pypi",
+        "identifier": "docker-helper-ai-mcp",
+        "version": "1.0.4",
+        "transport": {
+          "type": "stdio"
+        }
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-16/server.schema.json",
+    "name": "ai.smithery/afgong-sqlite-mcp-server",
+    "description": "Explore your Messages SQLite database to browse tables and inspect schemas with ease. Run flexible\u2026",
+    "repository": {
+      "url": "https://github.com/afgong/sqlite-mcp-server",
+      "source": "github",
+      "subfolder": "sqlite-explorer-fastmcp-mcp-server"
+    },
+    "version": "1.16.0",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://server.smithery.ai/@afgong/sqlite-mcp-server/mcp",
+        "headers": [
+          {
+            "description": "Bearer token for Smithery authentication",
+            "value": "Bearer {smithery_api_key}",
+            "name": "Authorization"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
+    "name": "ai.smithery/neverinfamous-memory-journal-mcp",
+    "description": "A MCP server built for developers enabling Git based project management with project and personal\u2026",
+    "repository": {
+      "url": "https://github.com/neverinfamous/memory-journal-mcp",
+      "source": "github"
+    },
+    "version": "1.0.0",
+    "remotes": [
+      {
+        "type": "streamable-http",
+        "url": "https://server.smithery.ai/@neverinfamous/memory-journal-mcp/mcp",
+        "headers": [
+          {
+            "description": "Bearer token for Smithery authentication",
+            "isRequired": true,
+            "value": "Bearer {smithery_api_key}",
+            "isSecret": true,
+            "name": "Authorization"
+          }
+        ]
+      }
+    ]
+  }
+]

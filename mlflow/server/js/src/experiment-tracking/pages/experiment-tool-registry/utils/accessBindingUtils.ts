@@ -1,4 +1,4 @@
-import type { MCPAccessBinding, RegisteredTool, ToolVersion } from '../types';
+import type { MCPAccessBinding, MCPStatus, RegisteredTool, ToolVersion } from '../types';
 
 export interface ServerRemote {
   type?: string;
@@ -34,15 +34,29 @@ export const getBindingVersionLabel = (binding: MCPAccessBinding): string => {
   return 'Latest';
 };
 
-export const parseLabelsInput = (input: string): string[] | undefined => {
-  const labels = input
-    .split(',')
-    .map((label) => label.trim())
-    .filter(Boolean);
-  return labels.length > 0 ? labels : undefined;
+export const getVersionStatusColor = (status: MCPStatus) => {
+  switch (status) {
+    case 'active':
+      return 'lime';
+    case 'deprecated':
+      return 'lemon';
+    case 'deleted':
+      return 'coral';
+    case 'draft':
+    default:
+      return 'charcoal';
+  }
 };
 
-export const formatLabelsForInput = (labels?: string[]): string => labels?.join(', ') ?? '';
+export const getVersionStatusBadgeStyles = (status: MCPStatus) => {
+  if (status === 'active') {
+    return {
+      backgroundColor: 'rgba(34, 197, 94, 0.2)',
+      color: '#22c55e',
+    };
+  }
+  return {};
+};
 
 export const parseRemotesFromVersion = (version?: ToolVersion): ServerRemote[] => {
   if (!version?.server_json) {

@@ -9,6 +9,7 @@ import {
   SegmentedControlButton,
   GridIcon,
   ListIcon,
+  Typography,
 } from '@databricks/design-system';
 import { FormattedMessage } from 'react-intl';
 import { ScrollablePageWrapper } from '@mlflow/mlflow/src/common/components/ScrollablePageWrapper';
@@ -83,11 +84,13 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
 
     const migratedBindings = migrateBindings(rawBindings, migratedTools);
 
-    if (migratedTools.some((t: any, i: number) => t !== loadedTools[i])) {
+    if (
+      rawBindings.some((binding, index) => binding !== migratedBindings[index]) ||
+      migratedTools.some((t: any, i: number) => t !== loadedTools[i])
+    ) {
       saveToolsToStorage(migratedTools);
-    }
-
-    if (rawBindings.some((binding) => !binding.description)) {
+      saveBindingsToStorage(migratedBindings);
+    } else if (rawBindings.some((binding) => !binding.description)) {
       saveBindingsToStorage(migratedBindings);
     }
 
@@ -342,6 +345,14 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
           {experimentId && createButton}
         </div>
         <Spacer />
+        {tabMode === TabMode.ACCESS_BINDINGS && (
+          <Typography.Paragraph color="secondary" css={{ marginBottom: theme.spacing.md }}>
+            <FormattedMessage
+              defaultMessage="Approved endpoints that connect MCP servers in the registry to live deployments in your environment."
+              description="Introductory description for the Access Bindings tab in the MCP registry"
+            />
+          </Typography.Paragraph>
+        )}
         {tabMode === TabMode.SERVERS ? (
           serverViewMode === ServerViewMode.TABLE ? (
             <ToolRegistryListTable
