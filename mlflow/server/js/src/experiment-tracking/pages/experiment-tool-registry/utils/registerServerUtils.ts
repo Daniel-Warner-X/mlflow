@@ -1,4 +1,4 @@
-import type { MCPTool, RegisteredTool, ServerIcon, ToolVersion } from '../types';
+import type { MCPTool, RegisteredTool, ToolVersion } from '../types';
 
 export const parseTagsInput = (input: string): Record<string, string> | undefined => {
   if (!input.trim()) {
@@ -43,23 +43,6 @@ export const parseToolsInput = (input: string): MCPTool[] | undefined => {
   }
 };
 
-export const parseSvgIconInput = (input: string): ServerIcon[] | undefined | null => {
-  const trimmed = input.trim();
-  if (!trimmed) {
-    return undefined;
-  }
-
-  if (trimmed.startsWith('data:image/svg+xml')) {
-    return [{ src: trimmed, mimeType: 'image/svg+xml' }];
-  }
-
-  if (!/<svg[\s>]/i.test(trimmed)) {
-    return null;
-  }
-
-  return [{ src: `data:image/svg+xml,${encodeURIComponent(trimmed)}`, mimeType: 'image/svg+xml' }];
-};
-
 export const formatTagsForInput = (tags?: Record<string, string>): string => {
   if (!tags) {
     return '';
@@ -76,32 +59,6 @@ export const formatToolsForInput = (tools?: MCPTool[]): string => {
   }
 
   return JSON.stringify(tools, null, 2);
-};
-
-export const formatIconSrcForInput = (icons?: ServerIcon[]): string => {
-  const src = icons?.[0]?.src;
-  if (!src) {
-    return '';
-  }
-
-  if (!src.startsWith('data:image/svg+xml')) {
-    return '';
-  }
-
-  const commaIndex = src.indexOf(',');
-  if (commaIndex === -1) {
-    return '';
-  }
-
-  const payload = src.slice(commaIndex + 1);
-  try {
-    if (src.includes(';base64,')) {
-      return atob(payload);
-    }
-    return decodeURIComponent(payload);
-  } catch {
-    return '';
-  }
 };
 
 export const buildRegisterToolFormValues = (tool: RegisteredTool, version?: ToolVersion) => {
@@ -124,6 +81,5 @@ export const buildRegisterToolFormValues = (tool: RegisteredTool, version?: Tool
     source: sourceVersion?.source ?? '',
     tags: formatTagsForInput(sourceVersion?.tags),
     tools: formatToolsForInput(sourceVersion?.tools),
-    iconSvg: formatIconSrcForInput(tool.icons),
   };
 };

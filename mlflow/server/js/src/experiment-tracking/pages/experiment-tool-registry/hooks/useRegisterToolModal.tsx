@@ -10,12 +10,11 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useForm, FormProvider } from 'react-hook-form';
 import { FormattedMessage, useIntl } from 'react-intl';
-import type { MCPStatus, MCPTool, ParsedServerJson, RegisteredTool, ServerIcon, ToolVersion } from '../types';
+import type { MCPStatus, MCPTool, ParsedServerJson, RegisteredTool, ToolVersion } from '../types';
 import {
   buildRegisterToolFormValues,
   parseTagsInput,
   parseToolsInput,
-  parseSvgIconInput,
 } from '../utils/registerServerUtils';
 
 export enum RegisterToolModalMode {
@@ -33,7 +32,6 @@ export interface RegisterToolResult {
   source?: string;
   tags?: Record<string, string>;
   tools?: MCPTool[];
-  icons?: ServerIcon[];
 }
 
 const emptyFormValues = {
@@ -43,7 +41,6 @@ const emptyFormValues = {
   source: '',
   tags: '',
   tools: '',
-  iconSvg: '',
 };
 
 export const useRegisterToolModal = ({
@@ -72,7 +69,6 @@ export const useRegisterToolModal = ({
     source: string;
     tags: string;
     tools: string;
-    iconSvg: string;
   }>({
     defaultValues: {
       serverJson: '',
@@ -81,7 +77,6 @@ export const useRegisterToolModal = ({
       source: '',
       tags: '',
       tools: '',
-      iconSvg: '',
     },
   });
 
@@ -95,7 +90,6 @@ export const useRegisterToolModal = ({
     source: string;
     tags: string;
     tools: string;
-    iconSvg: string;
   }) => {
     setIsLoading(true);
     setError(null);
@@ -126,13 +120,6 @@ export const useRegisterToolModal = ({
           setIsLoading(false);
           return;
         }
-      }
-
-      const parsedIcons = parseSvgIconInput(values.iconSvg);
-      if (parsedIcons === null) {
-        setError(new Error('Icon must be raw SVG markup or a data:image/svg+xml URI'));
-        setIsLoading(false);
-        return;
       }
 
       const parsedFields: ParsedServerJson = {
@@ -176,7 +163,6 @@ export const useRegisterToolModal = ({
         source: values.source.trim() || undefined,
         tags: parseTagsInput(values.tags),
         tools: parseToolsInput(values.tools),
-        icons: parsedIcons,
       });
       setOpen(false);
     } catch (err) {
@@ -324,22 +310,6 @@ export const useRegisterToolModal = ({
           name="tools"
           autoSize={{ minRows: 3, maxRows: 8 }}
           placeholder='[{"name": "search", "description": "Search the web"}]'
-        />
-        <Spacer />
-
-        <FormUI.Label htmlFor="mlflow.tools.create.iconSvg">
-          <FormattedMessage defaultMessage="Icon:" description="Label for MCP server SVG icon field" />
-        </FormUI.Label>
-        <RHFControlledComponents.TextArea
-          control={form.control}
-          id="mlflow.tools.create.iconSvg"
-          componentId="mlflow.tools.create.iconSvg"
-          name="iconSvg"
-          autoSize={{ minRows: 3, maxRows: 8 }}
-          placeholder={intl.formatMessage({
-            defaultMessage: '<svg>...</svg> or leave blank to use server.json',
-            description: 'Placeholder for MCP server SVG icon field',
-          })}
         />
       </Modal>
     </FormProvider>

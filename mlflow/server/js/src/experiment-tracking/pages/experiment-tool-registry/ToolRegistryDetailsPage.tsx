@@ -224,7 +224,6 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
       source,
       tags,
       tools: versionTools,
-      icons,
     }) => {
       const storedTools = loadToolsFromStorage();
       const toolIndex = storedTools.findIndex((t) => t.internal_name === decodedToolName);
@@ -249,7 +248,6 @@ const ToolRegistryDetailsPage = ({ experimentId }: { experimentId?: string } = {
         const updatedTool: RegisteredTool = {
           ...existingTool,
           display_name: displayName ?? existingTool.display_name,
-          icons: icons ?? existingTool.icons,
           server_version: serverVersion,
           parsed_server_json: parsedServerJson,
           latest_version: newVersion,

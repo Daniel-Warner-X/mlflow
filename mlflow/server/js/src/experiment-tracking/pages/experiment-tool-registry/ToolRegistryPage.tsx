@@ -138,7 +138,6 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
       source,
       tags,
       tools,
-      icons,
     }) => {
       setTools((prevTools) => {
         const existingToolIndex = prevTools.findIndex((tool) => tool.internal_name === internalName);
@@ -163,7 +162,6 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
           const updatedTool: RegisteredTool = {
             ...existingTool,
             display_name: displayName ?? existingTool.display_name,
-            icons: icons ?? existingTool.icons,
             server_version: serverVersion,
             server_json: serverJson || existingTool.server_json,
             parsed_server_json: parsedServerJson,
@@ -191,7 +189,6 @@ const ToolRegistryPage = ({ experimentId }: { experimentId?: string } = {}) => {
         const newTool: RegisteredTool = {
           internal_name: internalName,
           display_name: displayName,
-          icons,
           server_version: serverVersion,
           server_json: serverJson || undefined,
           parsed_server_json: parsedServerJson,
